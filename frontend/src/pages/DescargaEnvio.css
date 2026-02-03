@@ -1,0 +1,292 @@
+/* src/pages/DescargaEnvio.css - VERSIÓN FINAL (Con animación en botones) */
+
+@import url("https://fonts.googleapis.com/css?family=Open+Sans:400,600,400italic,600italic|Roboto+Slab:400,700");
+
+/* Contenedor principal y layout base */
+.descarga-container {
+  /* Variables locales estilo Editorial */
+  --descarga-primary: #f56a6a;       /* Rojo característico */
+  --descarga-primary-hover: #f67878;
+  --descarga-dark: #3d4449;          /* Títulos */
+  --descarga-text: #7f888f;          /* Cuerpo */
+  --descarga-border: rgba(210, 215, 217, 0.75);
+  --descarga-bg: #ffffff;
+  --radius-std: 0.375em;
+
+  position: fixed; top: 0; left: 0; z-index: 40;
+  width: 100vw; height: 100vh;
+  font-family: 'Open Sans', sans-serif;
+  background-color: var(--descarga-bg);
+  color: var(--descarga-text);
+  overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 1rem; box-sizing: border-box;
+}
+
+/* Envoltura del contenido */
+.descarga-container .descarga-content {
+  width: 100%; max-width: 1024px;
+  display: flex; flex-direction: column;
+  gap: 3rem; margin-top: 4rem; margin-bottom: 3rem;
+}
+
+/* Sección de encabezado */
+.descarga-container .header-section {
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+  border-bottom: 3px solid var(--descarga-primary); padding-bottom: 2rem;
+}
+
+.descarga-container h1 {
+  font-family: 'Roboto Slab', serif;
+  font-size: 3rem; font-weight: 700; line-height: 1.2;
+  color: var(--descarga-dark); margin: 0; letter-spacing: -0.01em;
+}
+
+.descarga-container .subtitle {
+  font-size: 1.15rem; color: var(--descarga-text);
+  max-width: 48rem; line-height: 1.6; margin: 0;
+}
+
+/* Grid de opciones */
+.descarga-container .options-grid {
+  display: grid; grid-template-columns: 1fr;
+  gap: 2rem; width: 100%; align-items: stretch;
+}
+
+@media (min-width: 768px) {
+  .descarga-container .options-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Estilos base de tarjeta */
+.descarga-container .modern-card {
+  background: white; border-radius: var(--radius-std);
+  border: 1px solid var(--descarga-border);
+  box-shadow: none;
+  display: flex; flex-direction: column;
+  padding: 2.5rem; height: 100%;
+  position: relative; overflow: hidden;
+}
+
+/* Cabecera de la tarjeta */
+.descarga-container .card-header {
+  display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+}
+
+.descarga-container .card-icon-box {
+  width: 3.5rem; height: 3.5rem;
+  background-color: rgba(245, 106, 106, 0.1); /* Rojo suave */
+  color: var(--descarga-primary);
+  border-radius: var(--radius-std);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* Títulos dentro de la tarjeta */
+.descarga-container .card-titles {
+  display: flex; flex-direction: column; gap: 0.2rem;
+}
+
+.descarga-container .card-title {
+  font-family: 'Roboto Slab', serif;
+  font-size: 1.25rem; font-weight: 700; color: var(--descarga-dark); margin: 0;
+}
+
+.descarga-container .card-subtitle {
+  font-size: 0.9rem; color: var(--descarga-text); margin: 0; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* Cuerpo de la tarjeta */
+.descarga-container .card-body {
+  display: flex; flex-direction: column; gap: 1.5rem;
+  justify-content: flex-start; flex: 1;
+}
+
+.descarga-container .card-description {
+  font-size: 1rem; color: var(--descarga-text); line-height: 1.6;
+  margin: 0 0 0.5rem 0; flex: 1; min-height: 4.5rem;
+}
+
+/* Caja de detalles de archivo */
+.descarga-container .file-details {
+  display: flex; gap: 1rem; align-items: center;
+  padding: 1.25rem; height: 3.5rem;
+  background-color: #fafafa; border-radius: var(--radius-std); 
+  border: 1px dashed var(--descarga-border);
+  box-sizing: border-box;
+}
+
+.descarga-container .file-stat {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.9rem; font-weight: 600; color: var(--descarga-dark);
+  font-family: 'Roboto Slab', serif;
+}
+
+/* Formulario de email */
+.descarga-container .email-form {
+  display: flex; flex-direction: column; gap: 1.5rem; flex: 0 0 auto;
+}
+
+.descarga-container .email-input-wrapper {
+  position: relative;
+}
+
+.descarga-container .email-icon {
+  position: absolute; left: 1rem; top: 50%;
+  transform: translateY(-50%); color: var(--descarga-text);
+}
+
+.descarga-container .modern-input {
+  width: 100%; height: 3.5rem;
+  padding-left: 2.75rem; padding-right: 1rem;
+  border-radius: var(--radius-std); border: 1px solid var(--descarga-border);
+  background-color: #fff; color: var(--descarga-dark); font-size: 1rem;
+  transition: all 0.2s; box-sizing: border-box; outline: none;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.descarga-container .modern-input:focus {
+  border-color: var(--descarga-primary); 
+  box-shadow: 0 0 0 1px var(--descarga-primary);
+}
+
+/* Botones principales */
+.descarga-container .btn-full {
+  display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+  width: 100%; padding: 1.1rem;
+  border-radius: var(--radius-std); border: none;
+  font-weight: 700; font-size: 1rem;
+  cursor: pointer; 
+  transition: all 0.2s ease-in-out; /* Transición suave */
+  font-family: 'Roboto Slab', serif; text-transform: uppercase; letter-spacing: 0.075em;
+}
+
+.descarga-container .btn-primary {
+  background-color: var(--descarga-primary); color: white;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* Sombra base sutil */
+}
+
+/* --- ANIMACIÓN HOVER AÑADIDA --- */
+.descarga-container .btn-primary:hover {
+  background-color: var(--descarga-primary-hover);
+  transform: translateY(-3px); /* Elevación */
+  box-shadow: 0 10px 15px rgba(245, 106, 106, 0.25); /* Sombra de profundidad */
+  opacity: 1;
+}
+
+.descarga-container .btn-primary:disabled {
+  background-color: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none;
+}
+
+/* Enlaces del pie de página */
+.descarga-container .footer-links {
+  display: flex; gap: 2rem; flex-wrap: wrap;
+  justify-content: center; align-items: center;
+  margin: 2rem 0 0 -1rem; width: 100%;
+}
+
+.descarga-container .back-link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem;
+  padding: 1rem 2rem; border-radius: var(--radius-std);
+  font-weight: 700; font-size: 0.9rem; text-decoration: none;
+  cursor: pointer; transition: all 0.2s;
+  background-color: transparent; color: var(--descarga-text);
+  box-shadow: inset 0 0 0 2px var(--descarga-border); border: none;
+  font-family: 'Roboto Slab', serif; text-transform: uppercase; letter-spacing: 0.075em;
+  white-space: nowrap;
+}
+
+.descarga-container .back-link:hover {
+  transform: none; 
+  background-color: rgba(210, 215, 217, 0.15);
+  color: var(--descarga-primary);
+  box-shadow: inset 0 0 0 2px var(--descarga-primary);
+}
+
+@media (max-width: 767px) {
+  .descarga-container .back-link { width: 100%; }
+}
+
+
+
+/* =========================================
+   ESTILOS DEL MODAL DE NOTIFICACIÓN (EDITORIAL)
+   ========================================= */
+
+/* Fondo oscuro (Overlay) */
+.notification-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(61, 68, 73, 0.6); /* Color oscuro corporativo semitransparente */
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Tarjeta del modal - Estilo Card Limpio */
+.notification-card {
+  background: #ffffff;
+  border-radius: var(--radius-std);
+  padding: 2.5rem 2rem;
+  width: 90%; max-width: 420px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  position: relative; 
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--descarga-border);
+}
+
+/* Botón cerrar (X) */
+.notification-close {
+  position: absolute; top: 1rem; right: 1rem;
+  background: none; border: none; cursor: pointer; 
+  color: var(--descarga-text);
+  padding: 0.5rem; border-radius: 50%; display: flex;
+  transition: all 0.2s;
+}
+.notification-close:hover { background-color: #f1f5f9; color: var(--descarga-primary); }
+
+/* Caja del icono */
+.notification-icon-box {
+  width: 4.5rem; height: 4.5rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Contenido de texto */
+.notification-content { margin-bottom: 2rem; }
+
+.notification-title {
+  font-family: 'Roboto Slab', serif; 
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--descarga-dark); 
+  margin: 0 0 0.75rem 0;
+}
+
+.notification-message { 
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem; color: var(--descarga-text); 
+  margin: 0; line-height: 1.6; 
+}
+
+/* Botón de acción del modal */
+.notification-actions { width: 100%; }
+
+.btn-modal-action {
+  display: block; width: 100%; padding: 1rem;
+  background-color: var(--descarga-primary); color: white;
+  border: none; border-radius: var(--radius-std);
+  font-family: 'Roboto Slab', serif; font-weight: 700; font-size: 1rem;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  cursor: pointer; transition: all 0.2s;
+}
+
+.btn-modal-action:hover {
+  background-color: var(--descarga-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 106, 106, 0.25);
+}
+
+/* Animaciones */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
