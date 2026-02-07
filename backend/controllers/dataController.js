@@ -268,7 +268,8 @@ const enviarResultadosPDF = async (req, res) => {
       },
       tls: {
         rejectUnauthorized: false 
-      }
+      },
+      family: 4 // Esto fuerza a usar IPv4 y evita el timeout con Gmail
     });
 
     //Adjunta el PDF directamente desde el buffer de memoria
