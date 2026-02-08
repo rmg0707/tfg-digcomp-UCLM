@@ -259,22 +259,17 @@ const enviarResultadosPDF = async (req, res) => {
   try {
     // Configura el cliente SMTP para el envío de correos
     const transporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST || 'smtp.gmail.com', 
-      port: 465,            // Probar 465 en lugar de 587
-      secure: true,         //true para el puerto 465
+      host: process.env.MAIL_HOST,
+      port: process.env.MAIL_PORT,
+      secure: false,    //En false para el puerto cambiado
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
       tls: {
-        // Con el puerto 465, no debería ser necesario.
+        rejectUnauthorized: false 
       },
-      family: 4,
-      
-      // Opciones extra para evitar que Render corte la conexión prematuramente
-      connectionTimeout: 10000, 
-      greetingTimeout: 10000,
-      socketTimeout: 10000 
+      family: 4 // Esto fuerza a usar IPv4 y evita el timeout con Gmail
     });
 
     //Adjunta el PDF directamente desde el buffer de memoria
