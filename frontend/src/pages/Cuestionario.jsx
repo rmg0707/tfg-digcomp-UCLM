@@ -631,7 +631,7 @@ function Cuestionario() {
               </a>
             )}
 
-            {/*ENLACE DIRECTORIO*/}
+            {/*ENLACE DIRECTORIO RECURSOS*/}
             <a href={ENLACE_DIRECTORIO_RAIZ} target="_blank" rel="noopener noreferrer" className="btn-external-resource" style={{ margin: 0, flex: 1, minWidth: '280px' }}>
               <div className="external-icon-box"><ExternalLink size={24} /></div>
               <div className="external-text-content">
