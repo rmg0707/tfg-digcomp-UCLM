@@ -421,6 +421,21 @@ body.dark-mode-body {
 input:checked + .slider { background-color: var(--primary); }
 input:checked + .slider:before { transform: translate(24px, -50%); }
 
+
+/*Arreglo boton menú con contraste + oscuro no era accesible*/
+.high-contrast .access-btn:hover,
+.high-contrast .access-btn.active {
+  background-color: var(--text-main) !important;
+  border-color: var(--text-main) !important;
+  color: var(--bg-page) !important;
+}
+
+.high-contrast .access-btn:hover svg,
+.high-contrast .access-btn.active svg {
+  color: var(--bg-page) !important;
+  stroke: var(--bg-page) !important;
+}
+
 /* =========================================
    10. ALTO CONTRASTE (LÓGICA "PRO")
    ========================================= */

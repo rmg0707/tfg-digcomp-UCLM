@@ -18,6 +18,9 @@ import {
 
 import './Cuestionario.css';
 
+// Cambiar enlace por directorio carpetas
+const ENLACE_DIRECTORIO_RAIZ = "https://1drv.ms/f/c/2f260ce3a6e48f16/IgAkfXygyl1yTbF1cX8IscMdAWR_MXL4gz79DSDNdNnKUK8?e=v4UR6B";
+
 // Palabras clave de áreas
 const KEYWORDS_AREAS = [
   'Información', 'Comunicación', 'Creación', 'Seguridad', 'Resolución'
@@ -151,26 +154,6 @@ const generarBateriaPreguntas = (todasLasPreguntas) => {
   }
 
   return seleccionFinal.sort(() => 0.5 - Math.random()).map(p => mezclarOpciones(p));
-};
-
-const obtenerRespuestaCorrectaLog = (p) => {
-  const datos = p.datosPregunta;
-  let items = [];
-  if (Array.isArray(datos)) items = datos;
-  else if (datos?.opciones) items = datos.opciones;
-  else if (datos?.items) items = datos.items;
-
-  if (!items || items.length === 0) return 'Sin datos';
-  const tipo = (p.tipoPregunta || '').toUpperCase();
-
-  if (items[0] && items[0].columna_correcta_id !== undefined) return 'Clasificación (ver detalle)';
-  if (tipo.includes('VERDADERO') || tipo.includes('FALSO')) {
-    const verdaderas = items.filter(i => i.es_verdadera || i.correcta === true).map(i => i.texto);
-    return `Verdaderas: ${verdaderas.join(' | ')}`;
-  }
-  const correcta = items.find(i => i.correcta === true);
-  if (correcta) return `${correcta.texto}`;
-  return 'No definida';
 };
 
 // ==========================================
@@ -429,21 +412,6 @@ function Cuestionario() {
         if (preguntasProcesadas.length === 0) {
           setErrorCarga("No se encontraron preguntas.");
         } else {
-          // Logs para depuración
-          const conteoAreas = preguntasProcesadas.reduce((acc, p) => {
-            const area = KEYWORDS_AREAS.find(kw => (p.areaDigComp || '').includes(kw)) || 'Otros';
-            acc[area] = (acc[area] || 0) + 1;
-            return acc;
-          }, {});
-
-          console.log("=== BATERÍA GENERADA ===");
-          console.log("Resumen por Área:", conteoAreas);
-          console.log("Detalle de preguntas:");
-          preguntasProcesadas.forEach((p, index) => {
-            console.log(`${index + 1}. [${p.codigo}] ${p.nivel} - Correcta: ${obtenerRespuestaCorrectaLog(p)}`);
-          });
-          console.log("========================");
-
           setBateriaPreguntas(preguntasProcesadas);
         }
       } catch {
@@ -612,6 +580,12 @@ function Cuestionario() {
     puedeContinuar = !!respuestasUsuario[preguntaActual.id];
   }
 
+  // Validación enlace_externo
+  const tieneEnlaceEspecifico = 
+    typeof preguntaActual.enlaceExterno === 'string' && 
+    preguntaActual.enlaceExterno.trim() !== '' && 
+    preguntaActual.enlaceExterno.toLowerCase() !== 'null';
+
   return (
     <div className={`quiz-container text-level-${configVisual.nivelTexto} ${configVisual.modoOscuro ? 'dark-mode' : ''} ${configVisual.altoContraste ? 'high-contrast' : ''}`}>
       <div className="quiz-header">
@@ -644,17 +618,29 @@ function Cuestionario() {
             </div>
           )}
 
-          {preguntaActual.enlaceExterno && (
-            <div className="external-link-wrapper">
-              <a href={preguntaActual.enlaceExterno} target="_blank" rel="noopener noreferrer" className="btn-external-resource">
+          <div className="links-container" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+            
+            {/*ENLACE EXTERNO*/}
+            {tieneEnlaceEspecifico && (
+              <a href={preguntaActual.enlaceExterno} target="_blank" rel="noopener noreferrer" className="btn-external-resource" style={{ margin: 0, flex: 1, minWidth: '280px' }}>
                 <div className="external-icon-box"><ExternalLink size={24} /></div>
                 <div className="external-text-content">
-                  <span className="external-label">Recurso</span>
-                  <span className="external-action">Abrir enlace</span>
+                  <span className="external-label">Recurso Específico</span>
+                  <span className="external-action">Abrir archivo o enlace</span>
                 </div>
               </a>
-            </div>
-          )}
+            )}
+
+            {/*ENLACE DIRECTORIO*/}
+            <a href={ENLACE_DIRECTORIO_RAIZ} target="_blank" rel="noopener noreferrer" className="btn-external-resource" style={{ margin: 0, flex: 1, minWidth: '280px' }}>
+              <div className="external-icon-box"><ExternalLink size={24} /></div>
+              <div className="external-text-content">
+                <span className="external-label">Repositorio de Archivos</span>
+                <span className="external-action">Abrir directorio raíz</span>
+              </div>
+            </a>
+
+          </div>
 
           <p className="question-instruction">
             {esArrastrar ? 'Arrastra las fichas.' : esVF ? 'Indica Verdadero o Falso.' : 'Selecciona la opción correcta.'}
