@@ -65,7 +65,7 @@
 }
 
 .informe-container .kpi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-.informe-container .kpi-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.075em; color: var(--informe-text); font-family: 'Roboto Slab', serif; }
+.informe-container .kpi-label { font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.075em; color: var(--informe-text); font-family: 'Roboto Slab', serif; }
 
 /* KPI ICON (FONDO AÑADIDO) */
 .informe-container .kpi-icon { 

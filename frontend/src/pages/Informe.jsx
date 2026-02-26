@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef, useLayoutEffect } from 're
 import { useSearchParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { 
   Save, Calendar, Trophy, Award, FileText, TrendingUp,
-  CheckCircle, ShieldAlert, Home, User, BookOpen, ExternalLink, Loader
+  CheckCircle, ShieldAlert, Home, User, BookOpen, ExternalLink, Loader, Clock
 } from 'lucide-react';
 
 import { 
@@ -73,6 +73,17 @@ const TarjetaRecurso = ({ recurso, temaArea, esAlta }) => {
       </a>
     </div>
   );
+};
+
+// Función auxiliar para formatear la duración
+const formatearDuracion = (segundosTotales) => {
+  if (!segundosTotales) return "--"; 
+  
+  const minutos = Math.floor(segundosTotales / 60);
+  const segundos = Math.round(segundosTotales % 60);
+  
+  if (minutos === 0) return `${segundos} seg`;
+  return `${minutos} min ${segundos} seg`;
 };
 
 function Informe() {
@@ -296,9 +307,22 @@ function Informe() {
           <div>
             <h1>Informe de Competencias</h1>
             <div className="header-meta">
-              <div className="meta-item"><User size={20} className="meta-icon" /><div><span className="meta-label">Usuario:</span> <strong>{perfilUsuario.nombre}</strong></div></div>
+              <div className="meta-item">
+                <User size={20} className="meta-icon" />
+                <div><span className="meta-label">Usuario:</span> <strong>{perfilUsuario.nombre}</strong></div>
+              </div>
               <div style={{ width: '1px', height: '20px', background: '#e2e8f0' }}></div>
-              <div className="meta-item"><Calendar size={20} className="meta-icon" /><div><span className="meta-label">Fecha:</span> <strong>{new Date().toLocaleDateString('es-ES')}</strong></div></div>
+              <div className="meta-item">
+                <Calendar size={20} className="meta-icon" />
+                <div><span className="meta-label">Fecha:</span> <strong>{new Date().toLocaleDateString('es-ES')}</strong></div>
+              </div>
+              <div style={{ width: '1px', height: '20px', background: '#e2e8f0' }}></div>
+              <div className="meta-item">
+                <Clock size={20} className="meta-icon" />
+                <div>
+                  <span className="meta-label">Duración:</span> <strong>{formatearDuracion(datosResultado?.duracionTotalSegundos)}</strong>
+                </div>
+              </div>
             </div>
           </div>
           <button onClick={irADescarga} className="btn-save"><span>Guardar Informe</span><Save size={20} /></button>

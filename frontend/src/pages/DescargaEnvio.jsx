@@ -42,6 +42,15 @@ const NotificationModal = ({ show, type, message, onClose }) => {
   );
 };
 
+//Función auxiliar para formatear la duración
+const formatearDuracion = (segundosTotales) => {
+  if (!segundosTotales) return "--"; 
+  const minutos = Math.floor(segundosTotales / 60);
+  const segundos = Math.round(segundosTotales % 60);
+  if (minutos === 0) return `${segundos} seg`;
+  return `${minutos} min ${segundos} seg`;
+};
+
 const dibujarRadarPDF = (doc, puntuaciones, centroX, centroY, radio) => {
   // Define la estructura base del gráfico dividiendo el círculo en cinco ejes para las áreas
   const numPuntos = 5;
@@ -120,6 +129,13 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
   const margen = 20;
   let posY = 25;
 
+  // Calcula el tiempo total sumando las duraciones del historial
+  let duracionTotalSegundos = 0;
+  historialRespuestas.forEach(p => {
+    duracionTotalSegundos += p.duracion || 0;
+  });
+  const textoDuracion = formatearDuracion(duracionTotalSegundos);
+
   // Recorre el historial para calcular el porcentaje de aciertos en cada área específica
   const puntuacionesCalculadas = CONFIG_AREAS.map((config) => {
     const preguntasArea = historialRespuestas.filter(p => {
@@ -192,13 +208,14 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
   
   posY += 15;
   
-  // Añade los datos del usuario y la fecha actual en la cabecera
+  // Añade los datos del usuario, ocupación, fecha y DURACIÓN
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.setFont("helvetica", "normal");
   doc.text(`USUARIO: ${perfilUsuario.nombre.toUpperCase()}`, margen, posY);
   doc.text(`OCUPACIÓN: ${perfilUsuario.ocupacion.toUpperCase()}`, margen, posY + 5);
   doc.text(`FECHA: ${new Date().toLocaleDateString()}`, anchoPag - margen, posY, { align: 'right' });
+  doc.text(`DURACIÓN: ${textoDuracion.toUpperCase()}`, anchoPag - margen, posY + 5, { align: 'right' });
 
   posY += 15;
 

@@ -68,11 +68,7 @@ const Home = () => {
 
     // Guardar cuestionario
     await CuestionarioService.crear(nuevoCuestionario);
-
-    console.group("🚀 Nueva Sesión (Usuario Recurrente)");
-    console.log("👤 Usuario:", usuarioDetectado);
-    console.groupEnd();
-
+    
     navegar(`/cuestionario?id=${idCuestionario}`);
   };
 
@@ -122,10 +118,6 @@ const Home = () => {
     // Crear registros
     await UsuarioService.crear(nuevoUsuario);
     await CuestionarioService.crear(nuevoCuestionario);
-
-    console.group("🚀 Nueva Sesión Iniciada");
-    console.log("👤 Usuario Creado:", nuevoUsuario);
-    console.groupEnd();
 
     navegar(`/cuestionario?id=${idCuestionario}`);
   };

@@ -378,6 +378,7 @@ function Cuestionario() {
   const finalizadoExitosamente = useRef(false);
   const efectoEjecutado = useRef(false);
   const puedeBorrar = useRef(false);
+  const tiempoInicioPregunta = useRef(null);
 
   const [indiceActual, setIndiceActual] = useState(0);
   const [respuestasUsuario, setRespuestasUsuario] = useState({});
@@ -423,14 +424,6 @@ function Cuestionario() {
     if (idCuestionario) iniciarCuestionario();
   }, [idCuestionario]);
 
-  // Guardar respaldo de preguntas
-  useEffect(() => {
-    if (bateriaPreguntas.length > 0) {
-      const registro = { cuestionarioId: idCuestionario, preguntas: bateriaPreguntas };
-      CuestionarioService.guardarPreguntasGeneradas(registro).catch(() => { });
-    }
-  }, [bateriaPreguntas, idCuestionario]);
-
   // Temporizador para permitir borrado
   useEffect(() => {
     const timer = setTimeout(() => { puedeBorrar.current = true; }, 2000);
@@ -445,6 +438,13 @@ function Cuestionario() {
       }
     };
   }, [idCuestionario]);
+
+  // Registro de incio de pregunta (para medir tiempo/duracion)
+  useEffect(() => {
+    if (!cargando && bateriaPreguntas.length > 0) {
+      tiempoInicioPregunta.current = new Date();
+    }
+  }, [indiceActual, cargando, bateriaPreguntas.length]);
 
   const cancelarCuestionario = () => { navegar('/'); };
 
@@ -481,6 +481,11 @@ function Cuestionario() {
 
       const notaFinal = (porcentaje / 10).toFixed(2);
 
+      let totalSegundos = 0;
+      nuevoHistorial.forEach(intento => {
+        totalSegundos += intento.duracion || 0;
+      });
+
       const reporteSimple = {
         nota: notaFinal,
         porcentaje: porcentaje.toFixed(2),
@@ -490,7 +495,8 @@ function Cuestionario() {
         aciertos: nuevoHistorial.filter(h => h.score === 1).length,
         parciales: nuevoHistorial.filter(h => h.score > 0 && h.score < 1).length,
         fallos: nuevoHistorial.filter(h => h.score === 0 && h.estado !== 'NO_SABE').length,
-        noSabe: nuevoHistorial.filter(h => h.estado === 'NO_SABE').length
+        noSabe: nuevoHistorial.filter(h => h.estado === 'NO_SABE').length,
+        duracionTotalSegundos: parseFloat(totalSegundos.toFixed(2))
       };
 
       try {
@@ -518,7 +524,18 @@ function Cuestionario() {
 
   // Evaluar respuesta actual
   const procesarIntento = (esNoSabe = false) => {
-    if (esNoSabe) return irSiguientePregunta({ id_pregunta: preguntaActual.id, codigo: preguntaActual.codigo, score: 0, puntosPonderados: 0, nivel: preguntaActual.nivel, estado: 'NO_SABE' });
+    const fechaInicio = tiempoInicioPregunta.current;
+    const fechaFin = new Date();
+    // Duración en segundos con 2 decimales
+    const duracionSegundos = parseFloat(((fechaFin - fechaInicio) / 1000).toFixed(2)); 
+    
+    // Formato ISO para la base de datos (Ej: 2023-10-25T10:00:00.000Z)
+    const fechaInicioIso = fechaInicio.toISOString();
+    const fechaFinIso = fechaFin.toISOString();
+
+
+    if (esNoSabe) return irSiguientePregunta({ id_pregunta: preguntaActual.id, codigo: preguntaActual.codigo, score: 0, puntosPonderados: 0, nivel: preguntaActual.nivel, estado: 'NO_SABE', 
+                                                fechaInicio: fechaInicioIso, fechaFin: fechaFinIso, duracion: duracionSegundos });
 
     let porcentajeAcierto = 0;
     const datos = preguntaActual.datosPregunta;
@@ -544,7 +561,8 @@ function Cuestionario() {
     irSiguientePregunta({
       id_pregunta: preguntaActual.id, codigo: preguntaActual.codigo, score: porcentajeAcierto,
       puntosPonderados: porcentajeAcierto * preguntaActual.puntosMaximos, nivel: preguntaActual.nivel,
-      estado: porcentajeAcierto === 1 ? 'CORRECTO' : porcentajeAcierto > 0 ? 'PARCIAL' : 'INCORRECTO'
+      estado: porcentajeAcierto === 1 ? 'CORRECTO' : porcentajeAcierto > 0 ? 'PARCIAL' : 'INCORRECTO',
+      fechaInicio: fechaInicioIso, fechaFin: fechaFinIso, duracion: duracionSegundos
     });
   };
 

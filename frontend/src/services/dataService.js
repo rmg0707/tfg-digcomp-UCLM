@@ -143,11 +143,6 @@ export const CuestionarioService = {
       throw error;
     }
   },
-
-  // Registra en la consola la estructura del examen generado para control interno
-  guardarPreguntasGeneradas: async (registro) => {
-    console.log("Log de auditoría (Examen generado):", registro);
-  },
   
   // Envía el archivo PDF y los datos del usuario al servidor de correo
   enviarResultadosPorCorreo: async (formData) => {
