@@ -88,6 +88,11 @@ body.dark-mode-body {
 }
 .quiz-meta { display: flex; justify-content: space-between; align-items: flex-end; }
 
+.quiz-title { 
+  min-width: 0;
+}
+
+
 .quiz-title h1 { 
   font-family: var(--font-heading);
   font-size: 2.2rem; font-weight: 700; color: var(--text-main); 
@@ -109,7 +114,10 @@ body.dark-mode-body {
 
 .quiz-counter { 
   font-family: var(--font-heading); font-size: 1.1rem; 
-  font-weight: 700; color: var(--text-main); 
+  font-weight: 700; color: var(--text-main);
+  white-space: nowrap; /* Prohíbe que el texto salte a la línea de abajo */
+  flex-shrink: 0;      /* Evita que el texto largo aplaste este contenedor */
+  margin-left: 1rem;
 }
 
 .progress-track {
@@ -546,6 +554,57 @@ input:checked + .slider:before { transform: translate(24px, -50%); }
 }
 .high-contrast .progress-track { border: 2px solid var(--border); background: transparent; }
 .high-contrast .progress-fill { background-color: var(--text-main); }
+
+/* G. Arrastrar y Soltar (Fichas) */
+.high-contrast .classification-item.available:hover {
+  background-color: var(--text-main) !important;
+  color: var(--bg-page) !important;
+  border-color: var(--text-main) !important;
+}
+
+/* H. Modal de Añadir Ítems */
+.high-contrast .modal-item-button {
+  border: 2px solid var(--border) !important;
+}
+
+.high-contrast .modal-item-button:hover,
+.high-contrast .modal-item-button:focus {
+  background-color: var(--text-main) !important;
+  color: var(--bg-page) !important;
+  border-color: var(--text-main) !important;
+}
+
+/* I. Botones "Añadir" (Columnas) y "Cancelar" (Modal) en Alto Contraste */
+.high-contrast .add-element-button,
+.high-contrast .modal-cancel-button {
+  border: 2px solid var(--text-main) !important;
+  color: var(--text-main) !important;
+  background-color: transparent !important;
+}
+
+.high-contrast .add-element-button:hover,
+.high-contrast .add-element-button:focus,
+.high-contrast .modal-cancel-button:hover,
+.high-contrast .modal-cancel-button:focus {
+  background-color: var(--text-main) !important;
+  color: var(--bg-page) !important;
+}
+
+/* J. Opciones Múltiples (Test) */
+.high-contrast .option-label:hover:not(.selected) {
+  background-color: var(--text-main) !important;
+  border-color: var(--text-main) !important;
+}
+
+/* Invertir el color del texto al pasar el ratón */
+.high-contrast .option-label:hover:not(.selected) .option-text {
+  color: var(--bg-page) !important;
+}
+
+/* Invertir el color del círculo (radio button) al pasar el ratón */
+.high-contrast .option-label:hover:not(.selected) .radio-circle {
+  border-color: var(--bg-page) !important;
+}
 
 /* =========================================
    11. MODALES Y EXTRAS

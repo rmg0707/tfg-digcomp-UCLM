@@ -178,9 +178,9 @@
 .informe-container .resources-catalog-link:hover { color: var(--informe-dark); }
 
 /* GRID RECURSOS */
-.informe-container .resources-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
-@media (min-width: 768px) { .informe-container .resources-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1024px) { .informe-container .resources-grid { grid-template-columns: repeat(3, 1fr); } }
+.informe-container .resources-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+@media (min-width: 768px) { .informe-container .resources-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .informe-container .resources-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* TARJETA RECURSO */
 .informe-container .resource-card {
@@ -204,6 +204,8 @@
 .informe-container .resource-card-title {
   font-size: 1.1rem; font-weight: 700; color: var(--informe-dark); margin: 0; line-height: 1.3;
   font-family: 'Roboto Slab', serif;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Descripción */
@@ -211,7 +213,10 @@
 
 .informe-container .resource-desc {
   font-size: 0.9rem; color: var(--informe-text); line-height: 1.6; margin: 0; white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
+
 .informe-container .resource-desc.clamped {
   display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3;
   -webkit-box-orient: vertical; overflow: hidden;
