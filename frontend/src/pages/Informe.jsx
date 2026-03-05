@@ -2,14 +2,16 @@ import React, { useMemo, useState, useEffect, useRef, useLayoutEffect } from 're
 import { useSearchParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { 
   Save, Calendar, Trophy, Award, FileText, TrendingUp,
-  CheckCircle, ShieldAlert, Home, User, BookOpen, ExternalLink, Loader, Clock
+  CheckCircle, ShieldAlert, Home, User, BookOpen, ExternalLink, Loader, Clock,
+  Eye, Minus, X
 } from 'lucide-react';
 
 import { 
   CONFIG_AREAS, RADAR_SETTINGS, 
   getNivelDetallado, 
   PUNTOS_POR_NIVEL, obtenerColorArea,
-  getEstadoDesempeño
+  getEstadoDesempeño,
+  MAPA_NIVELES_NUMERICOS
 } from '../config/localconfig';
 import { CuestionarioService, UsuarioService, RecursoService } from '../services/dataService';
 import './Informe.css';
@@ -34,17 +36,12 @@ const TarjetaRecurso = ({ recurso, temaArea, esAlta }) => {
     <div className="resource-card">
       <div className="resource-card-header">
         <div className="resource-badges-row">
-          <span style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '6px', 
-            backgroundColor: esAlta ? '#dc2626' : '#475569', 
-            color: '#ffffff', padding: '4px 10px', borderRadius: '999px', 
-            fontSize: '0.75rem', fontWeight: 'bold' 
-          }}>
+          <span className="resource-priority-badge" style={{ backgroundColor: esAlta ? '#dc2626' : '#475569' }}>
             {esAlta ? 'Prioridad Alta' : 'Refuerzo Sugerido'}
           </span>
         </div>
         
-        <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%', marginTop: '6px' }}>
+        <div className="resource-area-container">
           {recurso.area_dig_comp && (
             <div className="resource-area-tag" style={{ backgroundColor: temaArea.fondo, color: temaArea.texto }}>
               {recurso.area_dig_comp}
@@ -86,12 +83,118 @@ const formatearDuracion = (segundosTotales) => {
   return `${minutos} min ${segundos} seg`;
 };
 
+const renderRespuestaCorrecta = (pregunta) => {
+  if (!pregunta || !pregunta.datosPregunta) return "Respuesta no disponible.";
+  const tipo = (pregunta.tipoPregunta || '').toUpperCase();
+  const datos = pregunta.datosPregunta;
+
+  if (tipo.includes('SELECCION') || tipo.includes('TEST')) {
+    const opciones = Array.isArray(datos) ? datos : datos.opciones;
+    const correcta = opciones?.find(op => op.correcta);
+    return correcta ? correcta.texto : "No definida";
+  }
+
+  if (tipo.includes('VERDADERO') || tipo.includes('FALSO')) {
+    const items = Array.isArray(datos) ? datos : datos.items;
+    if (!items) return "No definida";
+    return (
+      <ul className="respuesta-list">
+        {items.map((item, i) => (
+          <li key={i}>{item.texto} ➔ <strong>{item.es_verdadera ? 'Verdadero' : 'Falso'}</strong></li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (tipo.includes('CLASIFICACION')) {
+    if (!datos.columnas || !datos.items) return "No definida";
+    return (
+      <ul className="respuesta-list">
+        {datos.items.map((item, i) => {
+          const col = datos.columnas.find(c => parseInt(c.id) === item.columna_correcta_id);
+          return <li key={i}>{item.texto} ➔ <strong>{col ? col.nombre : '?'}</strong></li>;
+        })}
+      </ul>
+    );
+  }
+
+  return "Consulta el material de referencia.";
+};
+
+const renderRespuestaUsuario = (resp, pregunta) => {
+  if (resp.estado === 'NO_SABE') return "Marcaste la opción: No lo sé.";
+  
+  if (!resp.respuestaUsuario) {
+    if (resp.estado === 'CORRECTO') return "Seleccionaste la opción correcta.";
+    if (resp.estado === 'INCORRECTO') return "Seleccionaste una opción incorrecta.";
+    if (resp.estado === 'PARCIAL') return "Seleccionaste una opción parcialmente correcta.";
+    return "Respuesta no registrada.";
+  }
+
+  if (!pregunta || !pregunta.datosPregunta) {
+      if (typeof resp.respuestaUsuario === 'object') return JSON.stringify(resp.respuestaUsuario);
+      return String(resp.respuestaUsuario);
+  }
+
+  const tipo = (pregunta.tipoPregunta || '').toUpperCase();
+  const datos = pregunta.datosPregunta;
+
+  if (tipo.includes('VERDADERO') || tipo.includes('FALSO')) {
+    const items = Array.isArray(datos) ? datos : datos.items;
+    if (items && typeof resp.respuestaUsuario === 'object') {
+      return (
+        <ul className="respuesta-list">
+          {items.map((item, i) => {
+            const llave = item.id || `item-${i}`;
+            const respU = resp.respuestaUsuario[llave];
+            let textoResp = "Sin responder";
+            if (respU === true) textoResp = "Verdadero";
+            if (respU === false) textoResp = "Falso";
+            return <li key={i}>{item.texto} ➔ <strong>{textoResp}</strong></li>;
+          })}
+        </ul>
+      );
+    }
+  }
+
+  if (tipo.includes('CLASIFICACION')) {
+    const columnas = datos?.columnas;
+    const items = datos?.items;
+    
+    if (columnas && items && typeof resp.respuestaUsuario === 'object') {
+      return (
+        <ul className="respuesta-list">
+          {items.map((item, i) => {
+            let colUserIde = null;
+            Object.keys(resp.respuestaUsuario).forEach(colId => {
+              if (Array.isArray(resp.respuestaUsuario[colId]) && resp.respuestaUsuario[colId].includes(item.texto)) {
+                colUserIde = colId;
+              }
+            });
+            const col = colUserIde ? columnas.find(c => String(c.id) === String(colUserIde)) : null;
+            const nombreCol = col ? col.nombre : 'Sin clasificar';
+            
+            return <li key={i}>{item.texto} ➔ <strong>{nombreCol}</strong></li>;
+          })}
+        </ul>
+      );
+    }
+  }
+
+  if (typeof resp.respuestaUsuario === 'string') {
+    return resp.respuestaUsuario;
+  }
+
+  return JSON.stringify(resp.respuestaUsuario);
+};
+
 function Informe() {
   const [paramsBusqueda] = useSearchParams();
   const location = useLocation();
   const navegar = useNavigate();
   
   const [verTodosRecursos, setVerTodosRecursos] = useState(false);
+  const [mostrarRevision, setMostrarRevision] = useState(false);
   const idCuestionario = paramsBusqueda.get('id');
 
   // Inicializa el estado recuperando datos de la navegación anterior o estableciendo valores vacíos por defecto
@@ -111,6 +214,14 @@ function Informe() {
   const [recursosRecomendados, setRecursosRecomendados] = useState([]);
   const [errorCarga, setErrorCarga] = useState(false);
 
+  const diccionarioPreguntas = useMemo(() => {
+    const diccionario = {};
+    bancoPreguntas.forEach(p => {
+      diccionario[p.id] = p;
+    });
+    return diccionario;
+  }, [bancoPreguntas]);
+
   // Gestiona la carga inicial de datos desde el servidor si no se recibieron a través de la navegación
   useEffect(() => {
     if (historialRespuestas && bancoPreguntas.length > 0 && !cargandoDatos) return;
@@ -121,9 +232,21 @@ function Informe() {
         let bancoActual = bancoPreguntas;
         if (bancoActual.length === 0) {
             const todasLasPreguntas = await CuestionarioService.obtenerBancoPreguntas();
-            bancoActual = todasLasPreguntas.map(p => ({
-               id: p.id, codigo: p.codigo, areaDigComp: p.area_dig_comp || p.areaDigComp, enunciado: p.enunciado, nivel: p.nivel 
-            }));
+            
+            bancoActual = todasLasPreguntas.map(p => {
+               const nivelFinal = MAPA_NIVELES_NUMERICOS[p.nivel]
+
+               return {
+                 id: p.id, 
+                 codigo: p.codigo, 
+                 areaDigComp: p.area_dig_comp || p.areaDigComp, 
+                 enunciado: p.enunciado, 
+                 nivel: nivelFinal,
+                 tipoPregunta: p.tipo_pregunta || p.tipoPregunta,
+                 datosPregunta: p.datos_pregunta || p.datosPregunta
+               };
+            });
+            
             setBancoPreguntas(bancoActual);
         }
 
@@ -238,9 +361,9 @@ function Informe() {
         let nivel = p.nivel;
         if (!nivel) {
            const original = bancoPreguntas.find(b => String(b.id) === String(p.id_pregunta));
-           nivel = original?.nivel ? String(original.nivel).replace(/Nivel\s*/i, '').trim().toUpperCase() : 'A1';
+           nivel = original?.nivel;
         }
-        const peso = PUNTOS_POR_NIVEL[nivel] || 1; 
+        const peso = PUNTOS_POR_NIVEL[MAPA_NIVELES_NUMERICOS[nivel]] || 1; 
         puntosMaximosArea += peso;
         if (p.puntosPonderados !== undefined) {
             puntosObtenidosArea += p.puntosPonderados;
@@ -296,8 +419,20 @@ function Informe() {
   const listaRecursosVisible = verTodosRecursos ? recursosRecomendados : recursosRecomendados.slice(0, 3);
   const hayMasRecursos = recursosRecomendados.length > 3 && !verTodosRecursos;
 
-  if (cargandoDatos) return <div className="informe-container loading-state" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}><div style={{ textAlign: 'center' }}><Loader className="spin-animation" size={48} color="#f56a6a" /><p style={{ marginTop: '20px', color: '#64748b' }}>Generando informe personalizado...</p></div></div>;
-  if (errorCarga || !historialRespuestas) return <div className="error-msg">Error: Informe no encontrado o no se pudieron cargar los datos.</div>;
+  if (cargandoDatos) {
+    return (
+      <div className="informe-container loading-state">
+        <div className="loading-content">
+          <Loader className="spin-animation" size={48} color="#f56a6a" />
+          <p className="loading-text">Generando informe personalizado...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorCarga || !historialRespuestas) {
+    return <div className="error-msg">Error: Informe no encontrado o no se pudieron cargar los datos.</div>;
+  }
 
   return (
     <div className="informe-container">
@@ -311,12 +446,12 @@ function Informe() {
                 <User size={20} className="meta-icon" />
                 <div><span className="meta-label">Usuario:</span> <strong>{perfilUsuario.nombre}</strong></div>
               </div>
-              <div style={{ width: '1px', height: '20px', background: '#e2e8f0' }}></div>
+              <div className="meta-divider"></div>
               <div className="meta-item">
                 <Calendar size={20} className="meta-icon" />
                 <div><span className="meta-label">Fecha:</span> <strong>{new Date().toLocaleDateString('es-ES')}</strong></div>
               </div>
-              <div style={{ width: '1px', height: '20px', background: '#e2e8f0' }}></div>
+              <div className="meta-divider"></div>
               <div className="meta-item">
                 <Clock size={20} className="meta-icon" />
                 <div>
@@ -344,12 +479,12 @@ function Informe() {
         {/* Genera la visualización del gráfico radial comparando las diferentes áreas */}
         <div className="main-chart-card">
           <div className="mb-4">
-            <h3 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>Perfil de Competencias (DigComp)</h3>
-            <p style={{ color: '#64748b', marginTop: '0.25rem' }}>Visualización radial de tus resultados por área</p>
+            <h3 className="chart-title">Perfil de Competencias (DigComp)</h3>
+            <p className="chart-subtitle">Visualización radial de tus resultados por área</p>
           </div>
           <div className="chart-layout">
             <div className="radar-container">
-              <svg width="700" height="500" viewBox="-130 -25 560 380" style={{ maxWidth: '100%', height: 'auto' }}>
+              <svg viewBox="-130 -25 560 380" className="radar-svg">
                 <g fill="none" stroke="#e2e8f0" strokeWidth="2.5">
                   <polygon points="150,130 169,144 162,166 138,166 131,144"></polygon>
                   <polygon points="150,110 188,138 174,182 126,182 112,138"></polygon>
@@ -375,7 +510,7 @@ function Informe() {
                 return (
                   <div className="stat-row" key={item.id}>
                     <span className="stat-label">{item.area}</span>
-                    <div className="progress-bar-bg" style={{ marginTop: 0 }}><div className="progress-bar-fill" style={{ width: `${item.puntuacion}%`, backgroundColor: estadoItem.colorHex }}></div></div>
+                    <div className="progress-bar-bg mt-0"><div className="progress-bar-fill" style={{ width: `${item.puntuacion}%`, backgroundColor: estadoItem.colorHex }}></div></div>
                     <span className="stat-val">{item.puntuacion}%</span>
                   </div>
                 );
@@ -384,6 +519,102 @@ function Informe() {
           </div>
         </div>
         
+        <div>
+          <div className="review-button-wrapper">
+            <button className="btn-review" onClick={() => setMostrarRevision(true)}>
+              <Eye size={20} /> Revisar mis respuestas
+            </button>
+          </div>
+
+          {mostrarRevision && (
+            <div className="review-modal-overlay" onClick={() => setMostrarRevision(false)}>
+              <div className="review-modal-content" onClick={(e) => e.stopPropagation()}>
+                
+                <div className="review-modal-header">
+                  <h3 className="review-modal-title"><CheckCircle color="var(--informe-primary)" /> Historial de Preguntas</h3>
+                  <button className="review-modal-close" onClick={() => setMostrarRevision(false)}>
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="review-modal-body">
+                  <div className="review-info-box">
+                    <p className="review-info-text">
+                      <strong>💡 Sistema de Puntuación:</strong> Las preguntas tienen diferentes pesos según su nivel de dificultad. Acertar una pregunta de nivel C2 suma más puntos a tu nota final que acertar una de nivel A1.
+                    </p>
+                  </div>
+
+                  {historialRespuestas.map((resp, index) => {
+                    const pregunta = diccionarioPreguntas[resp.id_pregunta];
+                    if (!pregunta) return null;
+
+                    let icon, color, textoEstado;
+                    if (resp.estado === 'CORRECTO') { 
+                      icon = <CheckCircle size={24} />; color = '#16a34a'; textoEstado = 'Acertada';
+                    } else if (resp.estado === 'INCORRECTO') { 
+                      icon = <ShieldAlert size={24} />; color = '#dc2626'; textoEstado = 'Fallada';
+                    } else if (resp.estado === 'PARCIAL') { 
+                      icon = <TrendingUp size={24} />; color = '#eab308'; textoEstado = 'Parcialmente correcta';
+                    } else { 
+                      icon = <Minus size={24} />; color = '#64748b'; textoEstado = 'No lo sabía';
+                    }
+
+                    const nivelBase = pregunta.nivel || resp.nivel;
+                    const nivelLimpio = MAPA_NIVELES_NUMERICOS[nivelBase] || nivelBase;
+
+                    return (
+                      <div key={index} className="review-question-card" style={{ borderColor: `${color}40`, backgroundColor: `${color}08` }}>
+                        <div className="review-question-icon" style={{ color: color }}>{icon}</div>
+                        
+                        <div className="review-question-content">
+                          <div className="review-question-meta">
+                            <span className="review-question-topic">
+                              Pregunta {index + 1} • {pregunta.areaDigComp || 'General'}
+                            </span>
+                            <span className="review-question-time">
+                              <Clock size={14} /> {formatearDuracion(resp.duracion)}
+                            </span>
+                          </div>
+                          
+                          <p className="review-question-statement">
+                            {pregunta.enunciado}
+                          </p>
+
+                          <div className="review-answers-container">
+                            <div className="review-answer-box" style={{ borderColor: `${color}40` }}>
+                              <span className="review-answer-label">Tu respuesta:</span>
+                              <div className="review-answer-value">
+                                {renderRespuestaUsuario(resp, pregunta)}
+                              </div>
+                            </div>
+
+                            <div className="review-answer-box correct">
+                              <span className="review-answer-label">Solución correcta:</span>
+                              <div className="review-answer-value">
+                                {renderRespuestaCorrecta(pregunta)}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="review-question-footer">
+                             <span className="review-status-badge" style={{ backgroundColor: color }}>
+                               {textoEstado}
+                             </span>
+                             <span className="review-score-text">
+                               (Nivel {nivelLimpio}) {resp.puntosPonderados > 0 ? `+${resp.puntosPonderados} pts` : '0 pts'}
+                             </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Desglosa el detalle de cada competencia mostrando el estado y el nivel específico */}
         <div>
           <h3 className="section-title"><FileText className="text-primary" /> Detalle por Áreas</h3>
@@ -406,8 +637,10 @@ function Informe() {
                     <p className="comp-desc">{item.competencias}</p>
                   </div>
                   <div className="comp-footer">
-                    <span style={{ color: item.colorTheme.text, fontWeight: '700' }}>{nivel.titulo} <span style={{ fontWeight: '800', color: '#0f172a', marginLeft: '4px' }}>{nivel.codigo}</span></span>
-                    <span style={{ color: estadoItem.colorHex, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="comp-level-title" style={{ color: item.colorTheme.text }}>
+                      {nivel.titulo} <span className="comp-level-code">{nivel.codigo}</span>
+                    </span>
+                    <span className="comp-status" style={{ color: estadoItem.colorHex }}>
                         <Icon size={14}/> {estadoItem.texto}
                     </span>
                   </div>
@@ -424,12 +657,12 @@ function Informe() {
             {hayMasRecursos && <button onClick={() => setVerTodosRecursos(true)} className="resources-catalog-link">Ver todos ({recursosRecomendados.length}) →</button>}
           </div>
           {cargandoRecursos ? (
-             <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
-                <Loader className="spin-animation" size={24} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '10px' }}/>
+             <div className="resources-msg">
+                <Loader className="spin-animation loader-inline" size={24} />
                 Buscando los mejores recursos para ti...
              </div>
           ) : recursosRecomendados.length === 0 ? (
-             <p style={{ padding: '0 20px', color: '#64748b' }}>¡Enhorabuena! Has obtenido un resultado excelente y no se han detectado áreas críticas que reforzar.</p>
+             <p className="resources-msg mt-0">¡Enhorabuena! Has obtenido un resultado excelente y no se han detectado áreas críticas que reforzar.</p>
           ) : (
             <div className="resources-grid">
               {listaRecursosVisible.map((recurso, idx) => {
@@ -441,7 +674,7 @@ function Informe() {
           )}
         </div>
 
-        <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center', paddingBottom: '30px' }}>
+        <div className="informe-footer-actions">
           <Link to="/" className="btn-primary btn-home-lg" style={{ textDecoration: 'none' }}><span>Volver a Inicio</span> <Home size={24} /></Link>
         </div>
         <div className="footer-mini">© 2025/26 Proyecto TFG - DigComp</div>

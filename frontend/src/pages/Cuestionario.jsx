@@ -31,35 +31,21 @@ const KEYWORDS_AREAS = [
 // ==========================================
 
 const formatearPreguntaBBDD = (preguntaEnBBDD) => {
-  let nivelFinal = 'A1';
-  const rawNivel = preguntaEnBBDD.nivel || preguntaEnBBDD.level;
-  const nivelNumerico = parseInt(rawNivel);
+  const nivelFinal = MAPA_NIVELES_NUMERICOS[preguntaEnBBDD.nivel]
 
-  // Normalizar nivel
-  if (!isNaN(nivelNumerico) && MAPA_NIVELES_NUMERICOS[nivelNumerico]) {
-    nivelFinal = MAPA_NIVELES_NUMERICOS[nivelNumerico];
-  } else if (rawNivel && typeof rawNivel === 'string') {
-    const procesado = rawNivel.replace(/Nivel\s*/i, '').trim().toUpperCase();
-    if (PUNTOS_POR_NIVEL[procesado]) nivelFinal = procesado;
-  } else if (preguntaEnBBDD.codigo) {
-    const prefijo = preguntaEnBBDD.codigo.substring(0, 2).toUpperCase();
-    if (PUNTOS_POR_NIVEL[prefijo]) nivelFinal = prefijo;
-  }
-
-  // Estructura unificada
   return {
     id: preguntaEnBBDD.id,
     codigo: preguntaEnBBDD.codigo,
     enunciado: preguntaEnBBDD.enunciado,
-    tipoPregunta: preguntaEnBBDD.tipo_pregunta || preguntaEnBBDD.tipoPregunta,
-    areaDigComp: preguntaEnBBDD.area_dig_comp || preguntaEnBBDD.areaDigComp,
+    tipoPregunta: preguntaEnBBDD.tipo_pregunta,
+    areaDigComp: preguntaEnBBDD.area_dig_comp,
     competenciaDigComp: obtenerTextoCompetencia(preguntaEnBBDD.codigo),
     nivel: nivelFinal,
     puntosMaximos: PUNTOS_POR_NIVEL[nivelFinal],
-    datosPregunta: preguntaEnBBDD.datos_pregunta || preguntaEnBBDD.datosPregunta,
-    rutaImagen: preguntaEnBBDD.ruta_imagen || preguntaEnBBDD.rutaImagen,
-    enlaceExterno: preguntaEnBBDD.enlace_externo || preguntaEnBBDD.enlaceExterno,
-    textoAltImagen: preguntaEnBBDD.texto_alt_imagen || preguntaEnBBDD.textoAltImagen
+    datosPregunta: preguntaEnBBDD.datos_pregunta,
+    rutaImagen: preguntaEnBBDD.ruta_imagen,
+    enlaceExterno: preguntaEnBBDD.enlace_externo,
+    textoAltImagen: preguntaEnBBDD.texto_alt_imagen
   };
 };
 
@@ -533,9 +519,27 @@ function Cuestionario() {
     const fechaInicioIso = fechaInicio.toISOString();
     const fechaFinIso = fechaFin.toISOString();
 
+    let respuestaDada = null;
+    if (!esNoSabe) {
+      if (esArrastrar) {
+        respuestaDada = tablerosClasificacion[preguntaActual.id] || {};
+      } else {
+        respuestaDada = respuestasUsuario[preguntaActual.id] || null;
+      }
+    }
 
-    if (esNoSabe) return irSiguientePregunta({ id_pregunta: preguntaActual.id, codigo: preguntaActual.codigo, score: 0, puntosPonderados: 0, nivel: preguntaActual.nivel, estado: 'NO_SABE', 
-                                                fechaInicio: fechaInicioIso, fechaFin: fechaFinIso, duracion: duracionSegundos });
+    if (esNoSabe) return irSiguientePregunta({ 
+      id_pregunta: preguntaActual.id, 
+      codigo: preguntaActual.codigo, 
+      score: 0, 
+      puntosPonderados: 0, 
+      nivel: preguntaActual.nivel, 
+      estado: 'NO_SABE', 
+      fechaInicio: fechaInicioIso, 
+      fechaFin: fechaFinIso, 
+      duracion: duracionSegundos,
+      respuestaUsuario: "NO_SABE"
+    });
 
     let porcentajeAcierto = 0;
     const datos = preguntaActual.datosPregunta;
@@ -559,10 +563,16 @@ function Cuestionario() {
     }
 
     irSiguientePregunta({
-      id_pregunta: preguntaActual.id, codigo: preguntaActual.codigo, score: porcentajeAcierto,
-      puntosPonderados: porcentajeAcierto * preguntaActual.puntosMaximos, nivel: preguntaActual.nivel,
+      id_pregunta: preguntaActual.id, 
+      codigo: preguntaActual.codigo, 
+      score: porcentajeAcierto,
+      puntosPonderados: porcentajeAcierto * preguntaActual.puntosMaximos, 
+      nivel: preguntaActual.nivel,
       estado: porcentajeAcierto === 1 ? 'CORRECTO' : porcentajeAcierto > 0 ? 'PARCIAL' : 'INCORRECTO',
-      fechaInicio: fechaInicioIso, fechaFin: fechaFinIso, duracion: duracionSegundos
+      fechaInicio: fechaInicioIso, 
+      fechaFin: fechaFinIso, 
+      duracion: duracionSegundos,
+      respuestaUsuario: respuestaDada
     });
   };
 
