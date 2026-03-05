@@ -1,6 +1,7 @@
 // Define la dirección base para conectar con el servidor backend
 //const API_URL = 'http://localhost:5000/api'; //VIEJA PARA LOCAL
-const API_URL = 'https://tfg-digcomp-uclm.onrender.com/api';
+//const API_URL = 'https://tfg-digcomp-uclm.onrender.com/api'; // VIEJA PARA RENDER
+const API_URL = '/api'; //NUEVA PARA PRODUCCIÓN EN UBUNTU
 
 
 export const UsuarioService = {
