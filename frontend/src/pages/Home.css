@@ -237,7 +237,7 @@
    ========================================= */
 .home-container .form-overlay {
   position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(4px); z-index: 40; animation: fadeIn 0.3s ease-out;
+  z-index: 40; animation: fadeIn 0.3s ease-out;
 }
 
 .home-container .start-form-container {

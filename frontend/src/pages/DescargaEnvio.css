@@ -217,7 +217,6 @@
 .notification-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background-color: rgba(61, 68, 73, 0.6); /* Color oscuro corporativo semitransparente */
-  backdrop-filter: blur(4px);
   z-index: 2000;
   display: flex; align-items: center; justify-content: center;
   animation: fadeIn 0.2s ease-out;

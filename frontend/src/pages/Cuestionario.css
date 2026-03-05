@@ -611,7 +611,7 @@ input:checked + .slider:before { transform: translate(24px, -50%); }
    ========================================= */
 .modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px);
+  background-color: rgba(255, 255, 255, 0.95);
   z-index: 1000; display: flex; align-items: center; justify-content: center;
   animation: modalFadeIn 0.2s ease-out;
 }
@@ -694,7 +694,7 @@ input:checked + .slider:before { transform: translate(24px, -50%); }
 
 .image-modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
+  background-color: rgba(255, 255, 255, 0.95);
   z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 2rem; cursor: zoom-out;
   animation: fadeInOverlay 0.3s ease-out forwards;
 }
