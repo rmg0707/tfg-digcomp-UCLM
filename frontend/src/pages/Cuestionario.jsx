@@ -13,7 +13,8 @@ import {
   PUNTOS_POR_NIVEL,
   NIVELES_ORDENADOS,
   MAPA_NIVELES_NUMERICOS,
-  obtenerTextoCompetencia
+  obtenerTextoCompetencia,
+  DICCIONARIO_CODIGOS_ONEDRIVE
 } from '../config/localconfig';
 
 import './Cuestionario.css';
@@ -581,6 +582,12 @@ function Cuestionario() {
   if (errorCarga) return <div className="quiz-container error-state"><LogOut size={48} color="#ef4444" /><h2>Error</h2><p>{errorCarga}</p><button className="btn btn-primary" onClick={() => navegar('/')}>Volver</button></div>;
 
   const preguntaActual = bateriaPreguntas[indiceActual];
+
+  const mostrarDirectorioRaiz = preguntaActual && (
+    DICCIONARIO_CODIGOS_ONEDRIVE.A1.includes(preguntaActual.codigo) ||
+    DICCIONARIO_CODIGOS_ONEDRIVE.A3.includes(preguntaActual.codigo)
+  );
+
   if (!preguntaActual) return <div>Cargando pregunta...</div>;
 
   const tipo = preguntaActual.tipoPregunta ? preguntaActual.tipoPregunta.toUpperCase() : '';
@@ -660,13 +667,15 @@ function Cuestionario() {
             )}
 
             {/*ENLACE DIRECTORIO RECURSOS*/}
-            <a href={ENLACE_DIRECTORIO_RAIZ} target="_blank" rel="noopener noreferrer" className="btn-external-resource" style={{ margin: 0, flex: 1, minWidth: '280px' }}>
-              <div className="external-icon-box"><ExternalLink size={24} /></div>
-              <div className="external-text-content">
-                <span className="external-label">Repositorio de Archivos</span>
-                <span className="external-action">Abrir directorio raíz</span>
-              </div>
-            </a>
+            {mostrarDirectorioRaiz && (
+              <a href={ENLACE_DIRECTORIO_RAIZ} target="_blank" rel="noopener noreferrer" className="btn-external-resource" style={{ margin: 0, flex: 1, minWidth: '280px' }}>
+                <div className="external-icon-box"><ExternalLink size={24} /></div>
+                <div className="external-text-content">
+                  <span className="external-label">Repositorio de Archivos</span>
+                  <span className="external-action">Abrir directorio raíz</span>
+                </div>
+              </a>
+            )}
 
           </div>
 
