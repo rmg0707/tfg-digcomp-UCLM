@@ -653,29 +653,41 @@ function Cuestionario() {
             </div>
           )}
 
-          <div className="links-container" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+          <div className="links-container" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '1rem'}}>
             
-            {/*ENLACE EXTERNO*/}
-            {tieneEnlaceEspecifico && (
-              <a href={preguntaActual.enlaceExterno} target="_blank" rel="noopener noreferrer" className="btn-external-resource" style={{ margin: 0, flex: 1, minWidth: '280px' }}>
-                <div className="external-icon-box"><ExternalLink size={24} /></div>
-                <div className="external-text-content">
-                  <span className="external-label">Recurso Específico</span>
-                  <span className="external-action">Abrir archivo o enlace</span>
-                </div>
-              </a>
-            )}
+            {/* SECCIÓN DE RECURSOS DESTACADA */}
+          {(tieneEnlaceEspecifico || mostrarDirectorioRaiz) && (
+            <div className="resources-alert-box">
+              <div className="resources-alert-header">
+                <FileText size={20} className="resources-alert-icon" />
+                <span>Material necesario para esta pregunta:</span>
+              </div>
+              
+              <div className="links-container">
+                {/* ENLACE EXTERNO */}
+                {tieneEnlaceEspecifico && (
+                  <a href={preguntaActual.enlaceExterno} target="_blank" rel="noopener noreferrer" className="btn-external-resource">
+                    <div className="external-icon-box"><ExternalLink size={24} /></div>
+                    <div className="external-text-content">
+                      <span className="external-label">Recurso Específico</span>
+                      <span className="external-action">Abrir archivo o enlace</span>
+                    </div>
+                  </a>
+                )}
 
-            {/*ENLACE DIRECTORIO RECURSOS*/}
-            {mostrarDirectorioRaiz && (
-              <a href={ENLACE_DIRECTORIO_RAIZ} target="_blank" rel="noopener noreferrer" className="btn-external-resource" style={{ margin: 0, flex: 1, minWidth: '280px' }}>
-                <div className="external-icon-box"><ExternalLink size={24} /></div>
-                <div className="external-text-content">
-                  <span className="external-label">Repositorio de Archivos</span>
-                  <span className="external-action">Abrir directorio raíz</span>
-                </div>
-              </a>
-            )}
+                {/* ENLACE DIRECTORIO RECURSOS */}
+                {mostrarDirectorioRaiz && (
+                  <a href={ENLACE_DIRECTORIO_RAIZ} target="_blank" rel="noopener noreferrer" className="btn-external-resource">
+                    <div className="external-icon-box"><ExternalLink size={24} /></div>
+                    <div className="external-text-content">
+                      <span className="external-label">Repositorio de Archivos</span>
+                      <span className="external-action">Abrir directorio raíz</span>
+                    </div>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
 
           </div>
 

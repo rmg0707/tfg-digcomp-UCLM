@@ -11,7 +11,8 @@ import {
   PUNTOS_POR_NIVEL, 
   getFeedbackCualitativo,
   getNivelDetallado,
-  getEstadoDesempeño
+  getEstadoDesempeño,
+  MAPA_NIVELES_NUMERICOS
 } from '../config/localconfig';
 
 import { CuestionarioService, UsuarioService, RecursoService } from '../services/dataService';
@@ -122,7 +123,7 @@ const dibujarRadarPDF = (doc, puntuaciones, centroX, centroY, radio) => {
   }
 };
 
-const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, listaRecursos) => {
+const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, listaRecursos, datosResultado) => {
   // Inicializa el documento PDF y establece márgenes y posición inicial
   const doc = new jsPDF();
   const anchoPag = doc.internal.pageSize.getWidth();
@@ -150,46 +151,27 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
         let nivel = p.nivel; 
         if (!nivel) {
             const original = bancoPreguntas.find(b => String(b.id) === String(p.id_pregunta));
-            nivel = original?.nivel ? String(original.nivel).replace(/Nivel\s*/i, '').trim().toUpperCase() : 'A1';
+            nivel = original?.nivel;
         }
-        const peso = PUNTOS_POR_NIVEL[nivel] || 1;
+        
+        const nivelLimpio = MAPA_NIVELES_NUMERICOS && MAPA_NIVELES_NUMERICOS[nivel] ? MAPA_NIVELES_NUMERICOS[nivel] : nivel;
+        const peso = PUNTOS_POR_NIVEL[nivelLimpio] || 1;
         puntosMaximos += peso;
 
-        if (p.puntosPonderados !== undefined) {
-            puntosObtenidos += p.puntosPonderados;
-        } else {
-            const scoreBase = typeof p.score === 'number' ? p.score : (p.estado === 'CORRECTO' ? 1 : 0);
-            puntosObtenidos += (scoreBase * peso);
-        }
+        const scoreBase = typeof p.score === 'number' ? p.score : (p.estado === 'CORRECTO' ? 1 : 0);
+        puntosObtenidos += (scoreBase * peso);
     });
 
-    return puntosMaximos > 0 ? Math.round((puntosObtenidos / puntosMaximos) * 100) : 0;
+    let porcentajeArea = puntosMaximos > 0 ? Math.round((puntosObtenidos / puntosMaximos) * 100) : 0;
+    return Math.min(Math.max(porcentajeArea, 0), 100);
   });
 
-  // Calcula la puntuación global ponderada sumando todos los pesos de las preguntas
-  let sumaPuntosUsuario = 0;
-  let sumaPuntosMaximos = 0;
-
-  historialRespuestas.forEach(p => {
-      let nivel = p.nivel;
-      if (!nivel) {
-          const original = bancoPreguntas.find(b => String(b.id) === String(p.id_pregunta));
-          nivel = original?.nivel ? String(original.nivel).replace(/Nivel\s*/i, '').trim().toUpperCase() : 'A1';
-      }
-      const peso = PUNTOS_POR_NIVEL[nivel] || 1;
-      sumaPuntosMaximos += peso;
-
-      if (p.puntosPonderados !== undefined) {
-          sumaPuntosUsuario += p.puntosPonderados;
-      } else {
-          const scoreBase = typeof p.score === 'number' ? p.score : (p.estado === 'CORRECTO' ? 1 : 0);
-          sumaPuntosUsuario += (scoreBase * peso);
-      }
-  });
-
-  const puntuacionGlobal = sumaPuntosMaximos > 0 
-      ? Math.round((sumaPuntosUsuario / sumaPuntosMaximos) * 100) 
-      : 0;
+  // Calcula la puntuación global oficial
+  const puntuacionGlobal = datosResultado && datosResultado.porcentaje 
+      ? Math.round(parseFloat(datosResultado.porcentaje)) 
+      : (puntuacionesCalculadas.length > 0 
+          ? Math.round(puntuacionesCalculadas.reduce((acc, val) => acc + val, 0) / puntuacionesCalculadas.length) 
+          : 0);
 
   const infoNivel = getNivelDetallado(puntuacionGlobal);
   
@@ -462,6 +444,8 @@ function DescargaEnvio() {
   const [datosInforme, setDatosInforme] = useState(() => location.state?.historial || null);
   const [bancoPreguntas, setBancoPreguntas] = useState(() => location.state?.bancoPreguntas || []); 
   const [usuario, setUsuario] = useState(() => location.state?.usuario || { nombre: 'Invitado', ocupacion: '' });
+  const [datosResultado] = useState(() => location.state?.resultados || null); // Añadido para los resultados oficiales
+  
   const [recursosParaPdf, setRecursosParaPdf] = useState([]); 
   const [datosListos, setDatosListos] = useState(() => {
       return !!(location.state?.historial && location.state?.bancoPreguntas);
@@ -562,7 +546,8 @@ function DescargaEnvio() {
     setCargandoPdf(true);
     setTimeout(() => {
       try { 
-        const { doc, nombreArchivo } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf);
+        // Actualizado para enviar datosResultado
+        const { doc, nombreArchivo } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado);
         doc.save(nombreArchivo);
       } 
       catch (error) { 
@@ -585,7 +570,8 @@ function DescargaEnvio() {
     setEnviandoEmail(true);
 
     try {
-      const { doc } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf);
+      // Actualizado para enviar datosResultado
+      const { doc } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado);
       const pdfBlob = doc.output('blob');
       const formData = new FormData();
       formData.append('pdf', pdfBlob, 'Informe_Competencias.pdf'); 

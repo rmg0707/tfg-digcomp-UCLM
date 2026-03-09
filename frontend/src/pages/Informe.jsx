@@ -234,7 +234,10 @@ function Informe() {
             const todasLasPreguntas = await CuestionarioService.obtenerBancoPreguntas();
             
             bancoActual = todasLasPreguntas.map(p => {
-               const nivelFinal = MAPA_NIVELES_NUMERICOS[p.nivel]
+               let nivelFinal = p.nivel;
+               if (MAPA_NIVELES_NUMERICOS && MAPA_NIVELES_NUMERICOS[p.nivel]) {
+                   nivelFinal = MAPA_NIVELES_NUMERICOS[p.nivel];
+               }
 
                return {
                  id: p.id, 
@@ -350,21 +353,33 @@ function Informe() {
   // Calcula las puntuaciones desglosadas por área de competencia aplicando los pesos según la dificultad
   const resultadosPorArea = useMemo(() => {
     if (!historialRespuestas?.length || bancoPreguntas.length === 0) return [];
+    
     return CONFIG_AREAS.map(config => {
       const preguntasDelArea = historialRespuestas.filter(resp => {
         const original = bancoPreguntas.find(b => String(b.id) === String(resp.id_pregunta));
         return original && original.areaDigComp && original.areaDigComp.includes(config.keyword);
       });
+      
       let puntosObtenidosArea = 0;
       let puntosMaximosArea = 0;
+
       preguntasDelArea.forEach(p => {
         let nivel = p.nivel;
         if (!nivel) {
            const original = bancoPreguntas.find(b => String(b.id) === String(p.id_pregunta));
            nivel = original?.nivel;
         }
-        const peso = PUNTOS_POR_NIVEL[MAPA_NIVELES_NUMERICOS[nivel]] || 1; 
+        
+        // Asignación segura del nivel para evitar fallos del array
+        let nivelString = nivel ? String(nivel).replace(/Nivel\s*/i, '').trim().toUpperCase() : 'A1';
+        if (MAPA_NIVELES_NUMERICOS && MAPA_NIVELES_NUMERICOS[nivel]) {
+            nivelString = MAPA_NIVELES_NUMERICOS[nivel];
+        }
+
+        const peso = PUNTOS_POR_NIVEL[nivelString] || PUNTOS_POR_NIVEL[nivel] || 1; 
         puntosMaximosArea += peso;
+        
+        // Sumamos los puntos priorizando "puntosPonderados" si la DB aún usa ese formato antiguo
         if (p.puntosPonderados !== undefined) {
             puntosObtenidosArea += p.puntosPonderados;
         } else {
@@ -372,7 +387,9 @@ function Informe() {
             puntosObtenidosArea += (scoreBase * peso);
         }
       });
-      const porcentajeArea = puntosMaximosArea > 0 ? Math.round((puntosObtenidosArea / puntosMaximosArea) * 100) : 0;
+
+      let porcentajeArea = puntosMaximosArea > 0 ? Math.round((puntosObtenidosArea / puntosMaximosArea) * 100) : 0;
+      porcentajeArea = Math.min(Math.max(porcentajeArea, 0), 100); // Candado limitador al 100%
       
       return { 
         ...config, area: config.fullTitle, competencias: config.desc, puntuacion: porcentajeArea 
@@ -410,7 +427,8 @@ function Informe() {
             state: { 
                 historial: historialRespuestas, 
                 bancoPreguntas: bancoPreguntas,
-                usuario: perfilUsuario
+                usuario: perfilUsuario,
+                resultados: datosResultado // Envío de resultados sincronizado
             } 
         });
     }
@@ -560,7 +578,7 @@ function Informe() {
                     }
 
                     const nivelBase = pregunta.nivel || resp.nivel;
-                    const nivelLimpio = MAPA_NIVELES_NUMERICOS[nivelBase] || nivelBase;
+                    const nivelLimpio = MAPA_NIVELES_NUMERICOS && MAPA_NIVELES_NUMERICOS[nivelBase] ? MAPA_NIVELES_NUMERICOS[nivelBase] : nivelBase;
 
                     return (
                       <div key={index} className="review-question-card" style={{ borderColor: `${color}40`, backgroundColor: `${color}08` }}>
@@ -597,12 +615,12 @@ function Informe() {
                           </div>
                           
                           <div className="review-question-footer">
-                             <span className="review-status-badge" style={{ backgroundColor: color }}>
-                               {textoEstado}
-                             </span>
-                             <span className="review-score-text">
-                               (Nivel {nivelLimpio}) {resp.puntosPonderados > 0 ? `+${resp.puntosPonderados} pts` : '0 pts'}
-                             </span>
+                              <span className="review-status-badge" style={{ backgroundColor: color }}>
+                                {textoEstado}
+                              </span>
+                              <span className="review-score-text">
+                                (Nivel {nivelLimpio}) {resp.puntosPonderados > 0 ? `+${resp.puntosPonderados} pts` : '0 pts'}
+                              </span>
                           </div>
                         </div>
                       </div>
