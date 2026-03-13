@@ -180,8 +180,27 @@ const eliminarTodosCuestionarios = async (req, res) => {
 
 const obtenerPreguntas = async (req, res) => {
   try {
-    // Devuelve todas las preguntas convirtiendo automáticamente el JSON a objetos
-    const result = await pool.query('SELECT * FROM preguntas'); 
+    const { nivel } = req.query; // Captura el parámetro de la URL (?nivel=A1)
+    
+    let query = 'SELECT * FROM preguntas';
+    let values = [];
+
+    // Si es de tipo nivel, filtramos la consulta
+    if (nivel) {
+      const mapaNiveles = {
+        'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6
+      };
+
+      const nivelNumerico = mapaNiveles[nivel.toUpperCase()];
+
+      if (nivelNumerico) {
+        query += ' WHERE nivel = $1';
+        values.push(nivelNumerico);
+      }
+    }
+
+    // Ejecuta la consulta (con o sin filtro)
+    const result = await pool.query(query, values); 
     res.json(result.rows);
   } catch (err) {
     console.error(err);

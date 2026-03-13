@@ -10,7 +10,7 @@ import {
   CONFIG_AREAS, 
   PUNTOS_POR_NIVEL, 
   getFeedbackCualitativo,
-  getNivelDetallado,
+  calcularNivelAdaptado,
   getEstadoDesempeño,
   MAPA_NIVELES_NUMERICOS
 } from '../config/localconfig';
@@ -123,7 +123,7 @@ const dibujarRadarPDF = (doc, puntuaciones, centroX, centroY, radio) => {
   }
 };
 
-const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, listaRecursos, datosResultado) => {
+const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, listaRecursos, datosResultado, tipoTest, nivelTest) => {
   // Inicializa el documento PDF y establece márgenes y posición inicial
   const doc = new jsPDF();
   const anchoPag = doc.internal.pageSize.getWidth();
@@ -158,8 +158,12 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
         const peso = PUNTOS_POR_NIVEL[nivelLimpio] || 1;
         puntosMaximos += peso;
 
-        const scoreBase = typeof p.score === 'number' ? p.score : (p.estado === 'CORRECTO' ? 1 : 0);
-        puntosObtenidos += (scoreBase * peso);
+        if (p.puntosPonderados !== undefined) {
+             puntosObtenidos += p.puntosPonderados;
+        } else {
+             const scoreBase = typeof p.score === 'number' ? p.score : (p.estado === 'CORRECTO' ? 1 : 0);
+             puntosObtenidos += (scoreBase * peso);
+        }
     });
 
     let porcentajeArea = puntosMaximos > 0 ? Math.round((puntosObtenidos / puntosMaximos) * 100) : 0;
@@ -173,7 +177,7 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
           ? Math.round(puntuacionesCalculadas.reduce((acc, val) => acc + val, 0) / puntuacionesCalculadas.length) 
           : 0);
 
-  const infoNivel = getNivelDetallado(puntuacionGlobal);
+  const infoNivel = calcularNivelAdaptado(puntuacionGlobal, tipoTest, nivelTest);
   
   // Comienza el proceso de dibujo en el PDF
 
@@ -201,7 +205,16 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
 
   posY += 15;
 
-  // Crea un recuadro con fondo gris para resaltar la puntuación global y el nivel alcanzado
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(61, 68, 73);
+  const textoModalidad = tipoTest === 'nivel' 
+      ? `Modalidad: Test por Nivel Específico (${nivelTest})` 
+      : "Modalidad: Test General (Evaluación Completa)";
+  doc.text(textoModalidad, anchoPag / 2, posY, { align: "center" });
+  
+  posY += 8;
+
   const altoCaja = 28;
   const anchoCaja = anchoPag - (margen * 2);
   const centroIzquierda = margen + (anchoCaja / 4);
@@ -219,7 +232,7 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
   doc.setFont("helvetica", "bold");
-  doc.text("PUNTUACIÓN GLOBAL", centroIzquierda, posY + 10, { align: "center" });
+  doc.text("PUNTUACIÓN LOGRADA", centroIzquierda, posY + 10, { align: "center" });
 
   doc.setFontSize(16);
   doc.setTextColor(0, 0, 0); 
@@ -286,14 +299,15 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
       
       posY += (lineasDesc.length * 4) + 4; 
 
-      // Dibuja la línea gris de fondo y la línea de color proporcional a la puntuación
-      doc.setDrawColor(230);
-      doc.setLineWidth(1.5);
-      doc.line(margen, posY, anchoPag - margen, posY); 
+      const anchoMaxBarra = anchoPag - (margen * 2);
+      
+      doc.setFillColor(226, 232, 240); // #e2e8f0
+      doc.roundedRect(margen, posY, anchoMaxBarra, 2, 1, 1, 'F');
       
       if (nota > 0) {
-        doc.setDrawColor(...colorEstado);
-        doc.line(margen, posY, margen + ((anchoPag - (margen * 2)) * (nota / 100)), posY); 
+        doc.setFillColor(...colorEstado);
+        const anchoProgreso = anchoMaxBarra * (nota / 100);
+        doc.roundedRect(margen, posY, anchoProgreso, 2, 1, 1, 'F');
       }
       
       posY += 12; 
@@ -444,8 +458,26 @@ function DescargaEnvio() {
   const [datosInforme, setDatosInforme] = useState(() => location.state?.historial || null);
   const [bancoPreguntas, setBancoPreguntas] = useState(() => location.state?.bancoPreguntas || []); 
   const [usuario, setUsuario] = useState(() => location.state?.usuario || { nombre: 'Invitado', ocupacion: '' });
-  const [datosResultado] = useState(() => location.state?.resultados || null); // Añadido para los resultados oficiales
+  const [datosResultado] = useState(() => location.state?.resultados || null); 
   
+  let tipoTest = datosResultado?.tipoTest || location.state?.tipoTest;
+  let nivelTest = datosResultado?.nivelTest || location.state?.nivelTest;
+
+  if (!tipoTest) {
+    const totalPreguntas = datosResultado?.total || datosInforme?.length || 42;
+    tipoTest = totalPreguntas < 40 ? 'nivel' : 'general';
+    
+    if (tipoTest === 'nivel' && datosInforme && datosInforme.length > 0) {
+      const n = datosInforme[0].nivel;
+      if (typeof n === 'number') {
+         const mapaNivelesInverso = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
+         nivelTest = mapaNivelesInverso[n] || 'A1';
+      } else {
+         nivelTest = String(n).replace(/Nivel\s*/i, '').trim().toUpperCase();
+      }
+    }
+  }
+
   const [recursosParaPdf, setRecursosParaPdf] = useState([]); 
   const [datosListos, setDatosListos] = useState(() => {
       return !!(location.state?.historial && location.state?.bancoPreguntas);
@@ -482,12 +514,6 @@ function DescargaEnvio() {
                     if (u) setUsuario(u);
                 }
             }
-        } else if (historialFinal && idCuestionario) {
-             const c = await CuestionarioService.obtenerPorId(idCuestionario);
-             if (c && c.usuarioId && c.usuarioId !== 'anonimo') {
-                 const u = await UsuarioService.obtenerPorId(c.usuarioId);
-                 if (u) setUsuario(u);
-             }
         }
 
         if (historialFinal && bancoLimpio.length > 0) {
@@ -546,8 +572,8 @@ function DescargaEnvio() {
     setCargandoPdf(true);
     setTimeout(() => {
       try { 
-        // Actualizado para enviar datosResultado
-        const { doc, nombreArchivo } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado);
+        // Actualizado para enviar datosResultado, ahora tipoTest y nivel
+        const { doc, nombreArchivo } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado, tipoTest, nivelTest);
         doc.save(nombreArchivo);
       } 
       catch (error) { 
@@ -570,8 +596,7 @@ function DescargaEnvio() {
     setEnviandoEmail(true);
 
     try {
-      // Actualizado para enviar datosResultado
-      const { doc } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado);
+      const { doc } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado, tipoTest, nivelTest);
       const pdfBlob = doc.output('blob');
       const formData = new FormData();
       formData.append('pdf', pdfBlob, 'Informe_Competencias.pdf'); 

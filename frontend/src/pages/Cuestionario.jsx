@@ -81,68 +81,49 @@ const mezclarOpciones = (preguntaOriginal) => {
   return p;
 };
 
-const generarBateriaPreguntas = (todasLasPreguntas) => {
+// Se añade el parámetro de nivel seleccionado para ajustar la generación
+const generarBateriaPreguntas = (todasLasPreguntas, nivelUnico = null) => {
   if (!todasLasPreguntas || todasLasPreguntas.length === 0) return [];
   const bancoFormateado = todasLasPreguntas.map(p => formatearPreguntaBBDD(p));
+  const poolDisponible = nivelUnico 
+    ? bancoFormateado.filter(p => p.nivel === nivelUnico)
+    : bancoFormateado;
 
-  const preguntasPorNivel = { 'A1': [], 'A2': [], 'B1': [], 'B2': [], 'C1': [], 'C2': [] };
-  bancoFormateado.forEach(p => {
-    if (preguntasPorNivel[p.nivel]) preguntasPorNivel[p.nivel].push(p);
-    else preguntasPorNivel['A1'].push(p);
+  // Se agrupa por tipo
+  const grupos = {
+    SELECCION: [],
+    TEST: [],
+    VF: [],
+    CLASIFICACION: []
+  };
+
+  poolDisponible.forEach(p => {
+    const tipo = (p.tipoPregunta || '').toUpperCase();
+    
+    if (tipo.includes('SELECCION') || tipo.includes('SELECCIÓN')) {
+      grupos.SELECCION.push(p);
+    } else if (tipo.includes('TEST')) {
+      grupos.TEST.push(p);
+    } else if (tipo.includes('VERDADERO') || tipo.includes('FALSO') || tipo.includes('VF')) {
+      grupos.VF.push(p);
+    } else if (tipo.includes('CLASIFICACION') || tipo.includes('CLASIFICACIÓN')) {
+      grupos.CLASIFICACION.push(p);
+    }
   });
 
-  let seleccionFinal = [];
-  const CANTIDAD_POR_NIVEL = 7;
+  // Aleatoriza cada grupo
+  const shuffle = (array) => array.sort(() => 0.5 - Math.random());
 
-  // Selección equilibrada por niveles
-  NIVELES_ORDENADOS.forEach(nivel => {
-    const poolNivel = [...preguntasPorNivel[nivel]];
-    const poolPorArea = { 0: [], 1: [], 2: [], 3: [], 4: [], 'otros': [] };
+  // 28 Seleccion/saber hacer, 6 tipo test, 5 Verdadero falso y 3 columnas
+  const seleccionFinal = [
+    ...shuffle(grupos.SELECCION).slice(0, 28),
+    ...shuffle(grupos.TEST).slice(0, 6),
+    ...shuffle(grupos.VF).slice(0, 5),
+    ...shuffle(grupos.CLASIFICACION).slice(0, 3)
+  ];
 
-    poolNivel.forEach(p => {
-      const areaTexto = p.areaDigComp || '';
-      let indexFound = -1;
-      KEYWORDS_AREAS.forEach((kw, idx) => {
-        if (areaTexto.includes(kw)) indexFound = idx;
-      });
-      if (indexFound !== -1) poolPorArea[indexFound].push(p);
-      else poolPorArea['otros'].push(p);
-    });
-
-    const seleccionNivel = [];
-    const idsSeleccionadosNivel = new Set();
-
-    // Intentar cubrir todas las áreas
-    for (let i = 0; i < 5; i++) {
-      if (poolPorArea[i].length > 0) {
-        const randomIdx = Math.floor(Math.random() * poolPorArea[i].length);
-        const elegida = poolPorArea[i][randomIdx];
-        seleccionNivel.push(elegida);
-        idsSeleccionadosNivel.add(elegida.id);
-        poolPorArea[i].splice(randomIdx, 1);
-      }
-    }
-
-    // Rellenar con restantes
-    let sobrantesNivel = poolNivel.filter(p => !idsSeleccionadosNivel.has(p.id));
-    sobrantesNivel.sort(() => 0.5 - Math.random());
-
-    while (seleccionNivel.length < CANTIDAD_POR_NIVEL && sobrantesNivel.length > 0) {
-      seleccionNivel.push(sobrantesNivel.pop());
-    }
-    seleccionFinal.push(...seleccionNivel);
-  });
-
-  // Completar si faltan preguntas
-  if (seleccionFinal.length < 42) {
-    const idsUsados = new Set(seleccionFinal.map(p => p.id));
-    const sobrantesGlobales = bancoFormateado.filter(p => !idsUsados.has(p.id));
-    seleccionFinal.push(...sobrantesGlobales.sort(() => 0.5 - Math.random()).slice(0, 42 - seleccionFinal.length));
-  }
-
-  return seleccionFinal.sort(() => 0.5 - Math.random()).map(p => mezclarOpciones(p));
+  return shuffle(seleccionFinal).map(p => mezclarOpciones(p));
 };
-
 // ==========================================
 // COMPONENTES VISUALES
 // ==========================================
@@ -356,6 +337,10 @@ function Cuestionario() {
   const navegar = useNavigate();
   const [paramsBusqueda] = useSearchParams();
   const idCuestionario = paramsBusqueda.get('id');
+  
+  // Obtiene nivel especifico (A1-C2) si existe
+  const nivelSeleccionado = paramsBusqueda.get('nivel');
+  const tipoTestUrl = paramsBusqueda.get('tipo');
 
   // Estados del cuestionario
   const [bateriaPreguntas, setBateriaPreguntas] = useState([]);
@@ -394,8 +379,8 @@ function Cuestionario() {
       efectoEjecutado.current = true;
       try {
         setCargando(true);
-        const preguntasCrudas = await CuestionarioService.obtenerBancoPreguntas();
-        const preguntasProcesadas = generarBateriaPreguntas(preguntasCrudas);
+        const preguntasCrudas = await CuestionarioService.obtenerBancoPreguntas(nivelSeleccionado);
+        const preguntasProcesadas = generarBateriaPreguntas(preguntasCrudas, nivelSeleccionado);
 
         if (preguntasProcesadas.length === 0) {
           setErrorCarga("No se encontraron preguntas.");
@@ -409,7 +394,7 @@ function Cuestionario() {
       }
     };
     if (idCuestionario) iniciarCuestionario();
-  }, [idCuestionario]);
+  }, [idCuestionario, nivelSeleccionado]);
 
   // Temporizador para permitir borrado
   useEffect(() => {
@@ -456,7 +441,7 @@ function Cuestionario() {
 
     if (indiceActual + 1 < bateriaPreguntas.length) {
       CuestionarioService.actualizar(idCuestionario, { progresoPreguntas: nuevoHistorial, resultado: null }).catch(() => { });
-      setIndiceActual(indiceActual + 1);
+      setIndiceActual(prevIndice => prevIndice + 1); 
     } else {
       // Finalizar cuestionario
       setGuardando(true);
@@ -483,7 +468,9 @@ function Cuestionario() {
         parciales: nuevoHistorial.filter(h => h.score > 0 && h.score < 1).length,
         fallos: nuevoHistorial.filter(h => h.score === 0 && h.estado !== 'NO_SABE').length,
         noSabe: nuevoHistorial.filter(h => h.estado === 'NO_SABE').length,
-        duracionTotalSegundos: parseFloat(totalSegundos.toFixed(2))
+        duracionTotalSegundos: parseFloat(totalSegundos.toFixed(2)),
+        tipoTest: tipoTestUrl || (nivelSeleccionado ? 'nivel' : 'general'),
+        nivelTest: nivelSeleccionado || null
       };
 
       try {
@@ -556,9 +543,20 @@ function Cuestionario() {
       let aciertos = 0;
       const resp = respuestasUsuario[preguntaActual.id] || {};
       const items = Array.isArray(datos) ? datos : datos.items;
-      items.forEach((item, i) => { if (resp[item.id || `item-${i}`] === item.es_verdadera) aciertos++; });
+      
+      items.forEach((item, i) => { 
+        // Buscamos es_verdadera. Si es undefined, buscamos correcta.
+        const valorEsperado = item.es_verdadera ?? item.correcta;
+        
+        // Si la respuesta del usuario coincide con el valor esperado, suma un acierto
+        if (resp[item.id || `item-${i}`] === valorEsperado) {
+          aciertos++; 
+        }
+      });
+      
+      // Calcula el porcentaje (ej. 3 aciertos de 4 = 0.75)
       porcentajeAcierto = aciertos / items.length;
-    } else {
+    }else {
       const opCorrecta = (Array.isArray(datos) ? datos : datos.opciones).find(op => op.texto === respuestasUsuario[preguntaActual.id]);
       porcentajeAcierto = (opCorrecta && opCorrecta.correcta) ? 1 : 0;
     }
@@ -625,13 +623,15 @@ function Cuestionario() {
     <div className={`quiz-container text-level-${configVisual.nivelTexto} ${configVisual.modoOscuro ? 'dark-mode' : ''} ${configVisual.altoContraste ? 'high-contrast' : ''}`}>
       <div className="quiz-header">
         <div className="quiz-meta">
-          <div className="quiz-title"><h1>Pregunta {indiceActual + 1}</h1>
+          <div className="quiz-title"><h1>Pregunta <span translate="no">{indiceActual + 1}</span></h1>
             <div className="quiz-subtitle">
-              <span>Área: {preguntaActual.areaDigComp} · Competencia: {preguntaActual.competenciaDigComp}</span>
+              <span>Área: <span translate="no">{preguntaActual.areaDigComp}</span> · Competencia: <span translate="no">{preguntaActual.competenciaDigComp}</span></span>
               <span className="badge-nivel">Nivel {preguntaActual.nivel}</span>
             </div>
           </div>
-          <div className="quiz-counter">{indiceActual + 1} de {bateriaPreguntas.length}</div>
+          <div className="quiz-counter" translate="no">
+            <span>{indiceActual + 1}</span> de <span>{bateriaPreguntas.length}</span>
+          </div>
         </div>
         <div className="progress-track"><div className="progress-fill" style={{ width: `${((indiceActual + 1) / bateriaPreguntas.length) * 100}%` }}></div></div>
       </div>

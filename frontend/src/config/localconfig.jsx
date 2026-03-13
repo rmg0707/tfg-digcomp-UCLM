@@ -28,9 +28,41 @@ export const getNivelDetallado = (score) => {
   return { titulo: "Altamente Avanzado", codigo: "C2" };
 };
 
-// Define colores y textos para Web y PDF
-export const getEstadoDesempeño = (score) => {
-  const nivel = getNivelDetallado(score);
+
+export const obtenerObjetoNivelDesdeCodigo = (codigo) => {
+  const mapaFinal = {
+    'A1': { titulo: 'Básico', codigo: 'A1' },
+    'A2': { titulo: 'Básico', codigo: 'A2' },
+    'B1': { titulo: 'Intermedio', codigo: 'B1' },
+    'B2': { titulo: 'Intermedio', codigo: 'B2' },
+    'C1': { titulo: 'Avanzado', codigo: 'C1' },
+    'C2': { titulo: 'Altamente Avanzado', codigo: 'C2' },
+  };
+  return mapaFinal[codigo] || mapaFinal['A1']; 
+};
+
+export const calcularNivelAdaptado = (puntuacionEvaluada, tipoTest = 'general', nivelTest = null) => {
+  // Si es general o no hay nivel definido, aplicamos la regla estándar
+  if (tipoTest === 'general' || !nivelTest) {
+    return getNivelDetallado(puntuacionEvaluada);
+  } 
+  
+  // Si es un test específico, capamos el nivel máximo al nivel del test
+  const indexTest = NIVELES_ORDENADOS.indexOf(nivelTest);
+  if (indexTest === -1) return getNivelDetallado(puntuacionEvaluada); 
+
+  if (puntuacionEvaluada >= 80) {
+    return obtenerObjetoNivelDesdeCodigo(NIVELES_ORDENADOS[indexTest]);
+  } else if (puntuacionEvaluada >= 60 && indexTest >= 1) {
+    return obtenerObjetoNivelDesdeCodigo(NIVELES_ORDENADOS[indexTest - 1]);
+  } else {
+    return obtenerObjetoNivelDesdeCodigo('A1');
+  }
+};
+
+// Define colores y textos para Web y PDF usando el nivel adaptado
+export const getEstadoDesempeño = (score, tipoTest = 'general', nivelTest = null) => {
+  const nivel = calcularNivelAdaptado(score, tipoTest, nivelTest);
   const codigo = nivel.codigo;
 
   // Niveles iniciales rojo

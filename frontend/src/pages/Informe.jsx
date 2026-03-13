@@ -8,10 +8,11 @@ import {
 
 import { 
   CONFIG_AREAS, RADAR_SETTINGS, 
-  getNivelDetallado, 
+  calcularNivelAdaptado, 
   PUNTOS_POR_NIVEL, obtenerColorArea,
   getEstadoDesempeño,
-  MAPA_NIVELES_NUMERICOS
+  MAPA_NIVELES_NUMERICOS,
+  NIVELES_ORDENADOS
 } from '../config/localconfig';
 import { CuestionarioService, UsuarioService, RecursoService } from '../services/dataService';
 import './Informe.css';
@@ -99,9 +100,13 @@ const renderRespuestaCorrecta = (pregunta) => {
     if (!items) return "No definida";
     return (
       <ul className="respuesta-list">
-        {items.map((item, i) => (
-          <li key={i}>{item.texto} ➔ <strong>{item.es_verdadera ? 'Verdadero' : 'Falso'}</strong></li>
-        ))}
+        {items.map((item, i) => {
+          // Usamos el fallback a item.correcta por si la BBDD está así
+          const valorCorrecto = item.es_verdadera ?? item.correcta;
+          return (
+            <li key={i}>{item.texto} ➔ <strong>{valorCorrecto ? 'Verdadero' : 'Falso'}</strong></li>
+          );
+        })}
       </ul>
     );
   }
@@ -203,6 +208,27 @@ function Informe() {
   const [bancoPreguntas, setBancoPreguntas] = useState(() => location.state?.bancoPreguntas || []); 
   const [perfilUsuario, setPerfilUsuario] = useState(() => location.state?.usuario || { nombre: 'Invitado', ocupacion: '' });
   
+  // Leemos directamente del JSON de resultados (si acabamos de hacerlo o viene de la BBDD)
+  let tipoTest = datosResultado?.tipoTest || location.state?.tipoTest;
+  let nivelTest = datosResultado?.nivelTest || location.state?.nivelTest;
+
+  // Fallback de retrocompatibilidad: Por si abres un informe antiguo que hiciste ayer 
+  // y que no tenía guardadas las variables tipoTest y nivelTest en su JSON.
+  if (!tipoTest) {
+    const totalPreguntas = datosResultado?.total || historialRespuestas?.length || 42;
+    tipoTest = totalPreguntas < 40 ? 'nivel' : 'general';
+    
+    if (tipoTest === 'nivel' && historialRespuestas && historialRespuestas.length > 0) {
+      const n = historialRespuestas[0].nivel;
+      if (typeof n === 'number') {
+         const mapaNivelesInverso = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
+         nivelTest = mapaNivelesInverso[n] || 'A1';
+      } else {
+         nivelTest = String(n).replace(/Nivel\s*/i, '').trim().toUpperCase();
+      }
+    }
+  }
+
   // Determina si es necesario mostrar el estado de carga basándose en si faltan datos esenciales
   const [cargandoDatos, setCargandoDatos] = useState(() => {
       const tieneHistorial = !!(location.state?.historial);
@@ -216,9 +242,7 @@ function Informe() {
 
   const diccionarioPreguntas = useMemo(() => {
     const diccionario = {};
-    bancoPreguntas.forEach(p => {
-      diccionario[p.id] = p;
-    });
+    bancoPreguntas.forEach(p => { diccionario[p.id] = p; });
     return diccionario;
   }, [bancoPreguntas]);
 
@@ -232,24 +256,15 @@ function Informe() {
         let bancoActual = bancoPreguntas;
         if (bancoActual.length === 0) {
             const todasLasPreguntas = await CuestionarioService.obtenerBancoPreguntas();
-            
             bancoActual = todasLasPreguntas.map(p => {
                let nivelFinal = p.nivel;
-               if (MAPA_NIVELES_NUMERICOS && MAPA_NIVELES_NUMERICOS[p.nivel]) {
-                   nivelFinal = MAPA_NIVELES_NUMERICOS[p.nivel];
-               }
-
+               if (MAPA_NIVELES_NUMERICOS && MAPA_NIVELES_NUMERICOS[p.nivel]) nivelFinal = MAPA_NIVELES_NUMERICOS[p.nivel];
                return {
-                 id: p.id, 
-                 codigo: p.codigo, 
-                 areaDigComp: p.area_dig_comp || p.areaDigComp, 
-                 enunciado: p.enunciado, 
-                 nivel: nivelFinal,
-                 tipoPregunta: p.tipo_pregunta || p.tipoPregunta,
+                 id: p.id, codigo: p.codigo, areaDigComp: p.area_dig_comp || p.areaDigComp, 
+                 enunciado: p.enunciado, nivel: nivelFinal, tipoPregunta: p.tipo_pregunta || p.tipoPregunta,
                  datosPregunta: p.datos_pregunta || p.datosPregunta
                };
             });
-            
             setBancoPreguntas(bancoActual);
         }
 
@@ -278,7 +293,7 @@ function Informe() {
             }
         }
       } catch (err) {
-        console.error("Error cargando informe:", err);
+        console.error("Error cargando datos:", err);
         setErrorCarga(true);
       } finally {
         setCargandoDatos(false);
@@ -389,11 +404,9 @@ function Informe() {
       });
 
       let porcentajeArea = puntosMaximosArea > 0 ? Math.round((puntosObtenidosArea / puntosMaximosArea) * 100) : 0;
-      porcentajeArea = Math.min(Math.max(porcentajeArea, 0), 100); // Candado limitador al 100%
+      porcentajeArea = Math.min(Math.max(porcentajeArea, 0), 100);
       
-      return { 
-        ...config, area: config.fullTitle, competencias: config.desc, puntuacion: porcentajeArea 
-      };
+      return { ...config, area: config.fullTitle, competencias: config.desc, puntuacion: porcentajeArea };
     });
   }, [historialRespuestas, bancoPreguntas]);
 
@@ -418,7 +431,8 @@ function Informe() {
           ? Math.round(resultadosPorArea.reduce((acc, item) => acc + item.puntuacion, 0) / resultadosPorArea.length) 
           : 0);
 
-  const nivelGlobal = getNivelDetallado(puntuacionFinal);
+  // Utilizamos la función de localconfig pasándole los datos extraídos
+  const nivelGlobal = calcularNivelAdaptado(puntuacionFinal, tipoTest, nivelTest);
   const estadoGlobal = getEstadoDesempeño(puntuacionFinal); 
 
   const irADescarga = () => {
@@ -476,6 +490,13 @@ function Informe() {
                   <span className="meta-label">Duración:</span> <strong>{formatearDuracion(datosResultado?.duracionTotalSegundos)}</strong>
                 </div>
               </div>
+              <div className="meta-divider"></div>
+              <div className="meta-item">
+                <BookOpen size={20} className="meta-icon" />
+                <div>
+                  <span className="meta-label">Test:</span> <strong>{tipoTest === 'nivel' ? `Nivel ${nivelTest}` : 'General'}</strong>
+                </div>
+              </div>
             </div>
           </div>
           <button onClick={irADescarga} className="btn-save"><span>Guardar Informe</span><Save size={20} /></button>
@@ -484,7 +505,7 @@ function Informe() {
         {/* Muestra los indicadores clave de desempeño global y nivel alcanzado */}
         <div className="summary-grid">
           <div className="kpi-card">
-            <div className="kpi-header"><span className="kpi-label">Puntuación Global</span><div className="kpi-icon"><Trophy size={20} /></div></div>
+            <div className="kpi-header"><span className="kpi-label">Puntuación Lograda</span><div className="kpi-icon"><Trophy size={20} /></div></div>
             <p className="kpi-value">{puntuacionFinal}<span className="kpi-sub">/100</span></p>
             <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${puntuacionFinal}%`, backgroundColor: estadoGlobal.colorHex }}></div></div>
           </div>
@@ -638,12 +659,12 @@ function Informe() {
           <h3 className="section-title"><FileText className="text-primary" /> Detalle por Áreas</h3>
           <div className="competencies-grid">
             {resultadosPorArea.map((item) => {
-              const nivel = getNivelDetallado(item.puntuacion);
+              const nivelArea = calcularNivelAdaptado(item.puntuacion, tipoTest, nivelTest);
               const estadoItem = getEstadoDesempeño(item.puntuacion);
               
-              let Icon = CheckCircle;
-              if (estadoItem.texto === 'MEJORAR') Icon = ShieldAlert;
-              else if (estadoItem.texto === 'COMPETENTE') Icon = TrendingUp;
+              let IconItem = CheckCircle;
+              if (estadoItem.texto === 'MEJORAR') IconItem = ShieldAlert;
+              else if (estadoItem.texto === 'COMPETENTE') IconItem = TrendingUp;
 
               return (
                 <div className="comp-card" key={item.id}>
@@ -656,10 +677,10 @@ function Informe() {
                   </div>
                   <div className="comp-footer">
                     <span className="comp-level-title" style={{ color: item.colorTheme.text }}>
-                      {nivel.titulo} <span className="comp-level-code">{nivel.codigo}</span>
+                      {nivelArea.titulo} <span className="comp-level-code">{nivelArea.codigo}</span>
                     </span>
                     <span className="comp-status" style={{ color: estadoItem.colorHex }}>
-                        <Icon size={14}/> {estadoItem.texto}
+                        <IconItem size={14}/> {estadoItem.texto}
                     </span>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-/* src/pages/Home.css - VERSIÓN FINAL (Btn Switch User unificado) */
+/* src/pages/Home.css*/
 
 @import url("https://fonts.googleapis.com/css?family=Open+Sans:400,600,400italic,600italic|Roboto+Slab:400,700");
 
@@ -17,18 +17,38 @@
 
   width: 100%;
   min-height: 100vh; 
-  background-color: var(--home-bg);
   display: flex;
+  flex-direction: column; /* Apila cabecera arriba y contenido abajo */
   align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
+  justify-content: flex-start; /* Empieza desde arriba */
+  padding: 2rem;
   box-sizing: border-box;
   overflow-x: hidden;
+  background-color: var(--home-bg);
   
   /* TIPOGRAFÍA BASE */
   font-family: 'Open Sans', sans-serif !important;
   color: var(--home-text);
   line-height: 1.65;
+}
+
+/* =========================================
+   CABECERA Y LOGO UCLM
+   ========================================= */
+.home-header {
+  width: 100%;
+  display: flex;
+  justify-content: center; 
+  align-items: center;
+  margin-top: 3rem;
+  margin-bottom: -3rem; /* Separación garantizada con el texto */
+  flex-shrink: 0; /* Evita que el logo se deforme por falta de espacio */
+  z-index: 10;
+}
+
+.main-logo {
+  height: clamp(60px, 8vh, 85px); /* Tamaño fluido: se adapta al zoom/pantalla */
+  width: auto;
 }
 
 /* Herencia de fuentes y resets */
@@ -55,6 +75,7 @@
   gap: 6vw;
   max-width: 1400px;
   width: 100%;
+  margin: auto auto; /* Centra vertical y horizontalmente en el espacio restante */
 }
 
 /* Columna Izquierda */
@@ -117,7 +138,7 @@
    BOTONES DE ACCIÓN
    ========================================= */
 .home-container .btn-group {
-  display: flex; gap: 1.5rem; margin-bottom: 3rem; align-items: center;
+  display: flex; gap: 1.5rem; align-items: center;
 }
 
 .home-container .btn {
@@ -248,7 +269,6 @@
   border-radius: 1.5rem; 
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
   border: 1px solid var(--home-border);
-  
   animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); text-align: left;
 }
 
@@ -366,15 +386,168 @@
   box-shadow: inset 0 0 0 2px var(--home-primary);
 }
 
-/* Ajustes responsive */
+/* =========================================
+   SELECTOR DE MODALIDAD (NUEVO)
+   ========================================= */
+.home-container .selector-test-wrapper {
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.home-container .nivel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.home-container .nivel-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
+  justify-content: center;
+  padding: 1.25rem; 
+  background-color: var(--home-bg);
+  border: 1px solid var(--home-border);
+  border-radius: var(--radius-std);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-align: center; 
+  outline: none;
+}
+
+/* Regla específica para el botón General */
+.home-container .btn-general {
+  width: 100%;
+}
+
+.home-container .nivel-btn:hover {
+  background-color: rgba(245, 106, 106, 0.03);
+  border-color: var(--home-primary);
+}
+
+.home-container .nivel-btn.selected {
+  border-color: var(--home-primary);
+  background-color: rgba(245, 106, 106, 0.08);
+  box-shadow: inset 0 0 0 1px var(--home-primary);
+}
+
+.home-container .nivel-id {
+  font-family: 'Roboto Slab', serif !important;
+  font-size: 1.4rem; 
+  font-weight: 800;
+  color: #000000; 
+  margin-bottom: 0.25rem;
+  line-height: 1;
+}
+
+.home-container .nivel-nombre {
+  font-family: 'Open Sans', sans-serif !important;
+  font-size: 0.9rem;
+  color: #000000; 
+  font-weight: 600; 
+  line-height: 1.2;
+}
+
+.home-container .nivel-btn.selected .nivel-id,
+.home-container .nivel-btn.selected .nivel-nombre {
+  color: #000000;
+}
+
+.home-container .nivel-btn.error {
+  border-color: #f56a6a;
+  background-color: #fff5f5;
+}
+
+/* --- MENSAJE DE ADVERTENCIA DE TIEMPO --- */
+.home-container .aviso-tiempo-test {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 2rem 0;
+  padding: 1.25rem;
+  background-color: #fffaf0;
+  border-left: 4px solid #f6ad55;
+  border-radius: var(--radius-std);
+  font-size: 0.95rem;
+  color: #7c2d12;
+  line-height: 1.5;
+  border-top: 1px solid rgba(246, 173, 85, 0.2);
+  border-right: 1px solid rgba(246, 173, 85, 0.2);
+  border-bottom: 1px solid rgba(246, 173, 85, 0.2);
+}
+
+.home-container .aviso-tiempo-test svg {
+  color: #f6ad55;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.home-container .aviso-tiempo-test strong {
+  font-family: 'Roboto Slab', serif;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+/* =========================================
+   AJUSTES RESPONSIVE (Móviles y Tablets)
+   ========================================= */
 @media (max-width: 1024px) {
-  .home-container { padding: 4rem 1.5rem; align-items: flex-start; height: auto; display: block; }
-  .home-content { flex-direction: column; gap: 4rem; margin: 0 auto; }
-  .home-container .left-col { align-items: center; text-align: center; max-width: 100%; }
-  .home-container .description { border-left: none; padding-left: 0; border-top: 3px solid var(--home-border); padding-top: 1rem; }
-  .home-container .trust-signals { justify-content: center; }
-  .home-container .right-col { width: 100%; padding-left: 0; gap: 1rem; }
-  .home-container .step-card { padding: 1.5rem; }
-  .home-container .btn-group { flex-direction: column; width: 100%; max-width: 400px; }
-  .home-container .btn { width: 100%; }
+  .home-container { 
+    padding: 2rem 1.5rem; 
+  }
+  
+  .home-header {
+    margin-bottom: 1.5rem; /* Menos espacio en móvil */
+  }
+
+  .home-content { 
+    flex-direction: column; 
+    gap: 3rem; 
+    margin: 0 auto; 
+  }
+
+  .home-container .left-col { 
+    align-items: center; 
+    text-align: center; 
+    max-width: 100%; 
+  }
+
+  .home-container .description { 
+    border-left: none; 
+    padding-left: 0; 
+    border-top: 3px solid var(--home-border); 
+    padding-top: 1rem; 
+  }
+
+  .home-container .trust-signals { 
+    justify-content: center; 
+  }
+
+  .home-container .right-col { 
+    width: 100%; 
+    padding-left: 0; 
+    gap: 1rem; 
+  }
+
+  .home-container .step-card { 
+    padding: 1.5rem; 
+  }
+
+  .home-container .btn-group { 
+    flex-direction: column; 
+    width: 100%; 
+    max-width: 400px; 
+  }
+
+  .home-container .btn { 
+    width: 100%; 
+  }
+
+  .home-container .aviso-tiempo-test {
+    margin: 1.5rem auto;
+    max-width: 400px;
+    text-align: left;
+  }
 }

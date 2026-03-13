@@ -63,10 +63,15 @@ export const UsuarioService = {
 };
 
 export const CuestionarioService = {
-  // Descarga todas las preguntas disponibles en el servidor para generar los exámenes
-  obtenerBancoPreguntas: async () => {
+  // Descarga todas las preguntas o las filtra por nivel si se especifica
+  obtenerBancoPreguntas: async (nivel = null) => {
     try {
-      const respuesta = await fetch(`${API_URL}/preguntas`);
+      // Si recibe nivel, construye URL con el query param
+      const url = nivel 
+        ? `${API_URL}/preguntas?nivel=${nivel}` 
+        : `${API_URL}/preguntas`;
+
+      const respuesta = await fetch(url);
       if (!respuesta.ok) return [];
       return await respuesta.json();
     } catch (error) {
