@@ -11,10 +11,9 @@ import {
   calcularNivelAdaptado, 
   PUNTOS_POR_NIVEL, obtenerColorArea,
   getEstadoDesempeño,
-  MAPA_NIVELES_NUMERICOS,
-  NIVELES_ORDENADOS
+  MAPA_NIVELES_NUMERICOS
 } from '../config/localconfig';
-import { CuestionarioService, UsuarioService, RecursoService } from '../services/dataService';
+import { CuestionarioService, RecursoService } from '../services/dataService';
 import './Informe.css';
 
 const TarjetaRecurso = ({ recurso, temaArea, esAlta }) => {
@@ -101,7 +100,6 @@ const renderRespuestaCorrecta = (pregunta) => {
     return (
       <ul className="respuesta-list">
         {items.map((item, i) => {
-          // Usamos el fallback a item.correcta por si la BBDD está así
           const valorCorrecto = item.es_verdadera ?? item.correcta;
           return (
             <li key={i}>{item.texto} ➔ <strong>{valorCorrecto ? 'Verdadero' : 'Falso'}</strong></li>
@@ -201,19 +199,17 @@ function Informe() {
   const [verTodosRecursos, setVerTodosRecursos] = useState(false);
   const [mostrarRevision, setMostrarRevision] = useState(false);
   const idCuestionario = paramsBusqueda.get('id');
+  
+  // Captura el nombre desde la URL (o desde el state si se navegó internamente)
+  const nombreUsuario = paramsBusqueda.get('nombre') || location.state?.nombreUsuario || 'Invitado';
 
-  // Inicializa el estado recuperando datos de la navegación anterior o estableciendo valores vacíos por defecto
   const [historialRespuestas, setHistorialRespuestas] = useState(() => location.state?.historial || null);
   const [datosResultado, setDatosResultado] = useState(() => location.state?.resultados || null);
   const [bancoPreguntas, setBancoPreguntas] = useState(() => location.state?.bancoPreguntas || []); 
-  const [perfilUsuario, setPerfilUsuario] = useState(() => location.state?.usuario || { nombre: 'Invitado', ocupacion: '' });
   
-  // Leemos directamente del JSON de resultados (si acabamos de hacerlo o viene de la BBDD)
   let tipoTest = datosResultado?.tipoTest || location.state?.tipoTest;
   let nivelTest = datosResultado?.nivelTest || location.state?.nivelTest;
 
-  // Fallback de retrocompatibilidad: Por si abres un informe antiguo que hiciste ayer 
-  // y que no tenía guardadas las variables tipoTest y nivelTest en su JSON.
   if (!tipoTest) {
     const totalPreguntas = datosResultado?.total || historialRespuestas?.length || 42;
     tipoTest = totalPreguntas < 40 ? 'nivel' : 'general';
@@ -268,25 +264,13 @@ function Informe() {
             setBancoPreguntas(bancoActual);
         }
 
-        if (historialRespuestas && datosResultado) {
-            if (perfilUsuario.nombre === 'Invitado' && location.state?.cuestionarioId) {
-                 const c = await CuestionarioService.obtenerPorId(location.state.cuestionarioId);
-                 if (c && c.usuarioId && c.usuarioId !== 'anonimo') {
-                     const u = await UsuarioService.obtenerPorId(c.usuarioId);
-                     if (u) setPerfilUsuario(u);
-                 }
-            }
-        } else if (idCuestionario) {
+        if (!historialRespuestas && idCuestionario) {
             const cuestionario = await CuestionarioService.obtenerPorId(idCuestionario);
             if (cuestionario) {
                setHistorialRespuestas(cuestionario.progresoPreguntas);
                if (cuestionario.resultado) {
                    const res = typeof cuestionario.resultado === 'string' ? JSON.parse(cuestionario.resultado) : cuestionario.resultado;
                    setDatosResultado(res);
-               }
-               if (cuestionario.usuarioId && cuestionario.usuarioId !== 'anonimo') {
-                   const u = await UsuarioService.obtenerPorId(cuestionario.usuarioId);
-                   if (u) setPerfilUsuario(u);
                }
             } else {
                setErrorCarga(true);
@@ -303,7 +287,7 @@ function Informe() {
   
   // La siguiente línea evita que el linter pida añadir dependencias que causarían un bucle infinito
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idCuestionario]); 
+  }, [idCuestionario, historialRespuestas, bancoPreguntas.length, cargandoDatos]); 
 
   // Identifica las respuestas incorrectas y busca recursos educativos relacionados en la base de datos
   useEffect(() => {
@@ -437,12 +421,12 @@ function Informe() {
 
   const irADescarga = () => {
     if (idCuestionario) {
-        navegar(`/descarga-envio?id=${idCuestionario}`, { 
+        navegar(`/descarga-envio?id=${idCuestionario}&nombre=${encodeURIComponent(nombreUsuario)}`, { 
             state: { 
                 historial: historialRespuestas, 
                 bancoPreguntas: bancoPreguntas,
-                usuario: perfilUsuario,
-                resultados: datosResultado // Envío de resultados sincronizado
+                nombreUsuario: nombreUsuario,
+                resultados: datosResultado
             } 
         });
     }
@@ -476,7 +460,7 @@ function Informe() {
             <div className="header-meta">
               <div className="meta-item">
                 <User size={20} className="meta-icon" />
-                <div><span className="meta-label">Usuario:</span> <strong>{perfilUsuario.nombre}</strong></div>
+                <div><span className="meta-label">Usuario:</span> <strong>{nombreUsuario}</strong></div>
               </div>
               <div className="meta-divider"></div>
               <div className="meta-item">

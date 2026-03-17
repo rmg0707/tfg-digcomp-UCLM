@@ -15,7 +15,7 @@ import {
   MAPA_NIVELES_NUMERICOS
 } from '../config/localconfig';
 
-import { CuestionarioService, UsuarioService, RecursoService } from '../services/dataService';
+import { CuestionarioService, RecursoService } from '../services/dataService';
 import './DescargaEnvio.css';
 
 const NotificationModal = ({ show, type, message, onClose }) => {
@@ -123,7 +123,8 @@ const dibujarRadarPDF = (doc, puntuaciones, centroX, centroY, radio) => {
   }
 };
 
-const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, listaRecursos, datosResultado, tipoTest, nivelTest) => {
+// NUEVO: Añadimos ocupacionUsuario a la función
+const crearDocumentoPDF = (historialRespuestas, nombreUsuario, ocupacionUsuario, bancoPreguntas, listaRecursos, datosResultado, tipoTest, nivelTest) => {
   // Inicializa el documento PDF y establece márgenes y posición inicial
   const doc = new jsPDF();
   const anchoPag = doc.internal.pageSize.getWidth();
@@ -198,8 +199,8 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.setFont("helvetica", "normal");
-  doc.text(`USUARIO: ${perfilUsuario.nombre.toUpperCase()}`, margen, posY);
-  doc.text(`OCUPACIÓN: ${perfilUsuario.ocupacion.toUpperCase()}`, margen, posY + 5);
+  doc.text(`USUARIO: ${nombreUsuario.toUpperCase()}`, margen, posY);
+  doc.text(`OCUPACIÓN: ${ocupacionUsuario.toUpperCase()}`, margen, posY + 5);
   doc.text(`FECHA: ${new Date().toLocaleDateString()}`, anchoPag - margen, posY, { align: 'right' });
   doc.text(`DURACIÓN: ${textoDuracion.toUpperCase()}`, anchoPag - margen, posY + 5, { align: 'right' });
 
@@ -442,7 +443,7 @@ const crearDocumentoPDF = (historialRespuestas, perfilUsuario, bancoPreguntas, l
       doc.text(`Página ${i} de ${totalPaginas} - Generado por Herramienta DigComp`, anchoPag / 2, altoFinal - 10, { align: 'center' });
   }
 
-  const nombreLimpio = perfilUsuario.nombre.replace(/\s+/g, '_').toLowerCase();
+  const nombreLimpio = nombreUsuario.replace(/\s+/g, '_').toLowerCase();
   const nombreArchivo = `informe_digcomp_${nombreLimpio}.pdf`;
 
   return { doc, nombreArchivo };
@@ -454,11 +455,12 @@ function DescargaEnvio() {
   const location = useLocation();
   const idCuestionario = paramsBusqueda.get('id');
   
-  // Recupera los datos pasados por navegación o inicializa estados vacíos
+  const nombreUsuario = paramsBusqueda.get('nombre') || location.state?.nombreUsuario || 'Invitado';
+
   const [datosInforme, setDatosInforme] = useState(() => location.state?.historial || null);
   const [bancoPreguntas, setBancoPreguntas] = useState(() => location.state?.bancoPreguntas || []); 
-  const [usuario, setUsuario] = useState(() => location.state?.usuario || { nombre: 'Invitado', ocupacion: '' });
   const [datosResultado] = useState(() => location.state?.resultados || null); 
+  const [ocupacion, setOcupacion] = useState('No especificada');
   
   let tipoTest = datosResultado?.tipoTest || location.state?.tipoTest;
   let nivelTest = datosResultado?.nivelTest || location.state?.nivelTest;
@@ -488,44 +490,40 @@ function DescargaEnvio() {
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [notificacion, setNotificacion] = useState({ show: false, type: '', message: '' });
 
-  // Si faltan datos intenta cargarlos desde el servidor usando el ID del cuestionario
   useEffect(() => {
-    if (datosListos && datosInforme && bancoPreguntas.length > 0) {
-        calcularRecursos(datosInforme, bancoPreguntas);
-        return;
-    }
-
     const prepararDatos = async () => {
       try {
-        const todasLasPreguntas = await CuestionarioService.obtenerBancoPreguntas();
-        const bancoLimpio = todasLasPreguntas.map(p => ({
-           id: p.id, codigo: p.codigo, areaDigComp: p.area_dig_comp || p.areaDigComp, nivel: p.nivel 
-        }));
-        setBancoPreguntas(bancoLimpio);
-
         let historialFinal = datosInforme;
-        if (!historialFinal && idCuestionario) {
+        
+        if (idCuestionario) {
             const c = await CuestionarioService.obtenerPorId(idCuestionario);
             if (c) {
                 historialFinal = c.progresoPreguntas;
                 setDatosInforme(historialFinal);
-                if (c.usuarioId && c.usuarioId !== 'anonimo') {
-                    const u = await UsuarioService.obtenerPorId(c.usuarioId);
-                    if (u) setUsuario(u);
-                }
+                if (c.ocupacion) setOcupacion(c.ocupacion);
             }
         }
 
-        if (historialFinal && bancoLimpio.length > 0) {
-            calcularRecursos(historialFinal, bancoLimpio);
+        if (!datosListos) {
+            const todasLasPreguntas = await CuestionarioService.obtenerBancoPreguntas();
+            const bancoLimpio = todasLasPreguntas.map(p => ({
+               id: p.id, codigo: p.codigo, areaDigComp: p.area_dig_comp || p.areaDigComp, nivel: p.nivel 
+            }));
+            setBancoPreguntas(bancoLimpio);
+
+            if (historialFinal && bancoLimpio.length > 0) {
+                calcularRecursos(historialFinal, bancoLimpio);
+            }
+        } else if (datosInforme && bancoPreguntas.length > 0) {
+            calcularRecursos(datosInforme, bancoPreguntas);
         }
       } catch (error) { console.error("Error:", error); }
     };
-    if (!datosListos) prepararDatos();
+    
+    prepararDatos();
   // eslint-disable-next-line
   }, [idCuestionario]);
 
-  // Analiza las respuestas incorrectas para buscar recursos educativos en la base de datos
   const calcularRecursos = async (historial, banco) => {
         if (historial && banco.length > 0) {
             const preguntasA_Reforzar = historial.filter(r => 
@@ -572,8 +570,7 @@ function DescargaEnvio() {
     setCargandoPdf(true);
     setTimeout(() => {
       try { 
-        // Actualizado para enviar datosResultado, ahora tipoTest y nivel
-        const { doc, nombreArchivo } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado, tipoTest, nivelTest);
+        const { doc, nombreArchivo } = crearDocumentoPDF(datosInforme, nombreUsuario, ocupacion, bancoPreguntas, recursosParaPdf, datosResultado, tipoTest, nivelTest);
         doc.save(nombreArchivo);
       } 
       catch (error) { 
@@ -596,12 +593,12 @@ function DescargaEnvio() {
     setEnviandoEmail(true);
 
     try {
-      const { doc } = crearDocumentoPDF(datosInforme, usuario, bancoPreguntas, recursosParaPdf, datosResultado, tipoTest, nivelTest);
+      const { doc } = crearDocumentoPDF(datosInforme, nombreUsuario, ocupacion, bancoPreguntas, recursosParaPdf, datosResultado, tipoTest, nivelTest);
       const pdfBlob = doc.output('blob');
       const formData = new FormData();
       formData.append('pdf', pdfBlob, 'Informe_Competencias.pdf'); 
       formData.append('email', emailDestino);
-      formData.append('nombreUsuario', usuario.nombre || 'Usuario');
+      formData.append('nombreUsuario', nombreUsuario);
 
       await CuestionarioService.enviarResultadosPorCorreo(formData);
 

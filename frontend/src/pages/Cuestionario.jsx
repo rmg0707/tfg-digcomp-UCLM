@@ -22,11 +22,6 @@ import './Cuestionario.css';
 // Cambiar enlace por directorio carpetas
 const ENLACE_DIRECTORIO_RAIZ = "https://1drv.ms/f/c/2f260ce3a6e48f16/IgAkfXygyl1yTbF1cX8IscMdAWR_MXL4gz79DSDNdNnKUK8?e=v4UR6B";
 
-// Palabras clave de áreas
-const KEYWORDS_AREAS = [
-  'Información', 'Comunicación', 'Creación', 'Seguridad', 'Resolución'
-];
-
 // ==========================================
 // FUNCIÓN DE LIMPIEZA DE DATOS
 // ==========================================
@@ -342,6 +337,9 @@ function Cuestionario() {
   const nivelSeleccionado = paramsBusqueda.get('nivel');
   const tipoTestUrl = paramsBusqueda.get('tipo');
 
+  //Nombre de usuario para personalizar
+  const nombreUsuario = paramsBusqueda.get('nombre');
+
   // Estados del cuestionario
   const [bateriaPreguntas, setBateriaPreguntas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -484,7 +482,8 @@ function Cuestionario() {
           state: {
             cuestionarioId: idCuestionario,
             resultados: reporteSimple,
-            historial: nuevoHistorial
+            historial: nuevoHistorial,
+            nombreUsuario: nombreUsuario
           },
           replace: true
         });

@@ -5,52 +5,52 @@ const nodemailer = require('nodemailer');
 // CONTROLADORES DE USUARIOS
 
 
-const crearUsuario = async (req, res) => {
-  const { id, nombre, ocupacion } = req.body;
-  try {
-    // Inserta usuario y devuelve datos creados inmediatamente
-    const query = 'INSERT INTO usuarios (id, nombre, ocupacion) VALUES ($1, $2, $3) RETURNING *';
-    const result = await pool.query(query, [id, nombre, ocupacion]);
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Error al crear usuario:', err);
-    res.status(500).json({ error: 'Error al guardar el usuario' });
-  }
-};
+// const crearUsuario = async (req, res) => {
+//   const { id, nombre, ocupacion } = req.body;
+//   try {
+//     // Inserta usuario y devuelve datos creados inmediatamente
+//     const query = 'INSERT INTO usuarios (id, nombre, ocupacion) VALUES ($1, $2, $3) RETURNING *';
+//     const result = await pool.query(query, [id, nombre, ocupacion]);
+//     res.json(result.rows[0]);
+//   } catch (err) {
+//     console.error('Error al crear usuario:', err);
+//     res.status(500).json({ error: 'Error al guardar el usuario' });
+//   }
+// };
 
-const obtenerTodosLosUsuarios = async (req, res) => {
-  try {
-    // Obtiene todos los usuarios ordenados alfabéticamente
-    const result = await pool.query('SELECT * FROM usuarios ORDER BY nombre ASC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error al obtener usuarios:', err);
-    res.status(500).json({ error: 'Error al obtener la lista de usuarios' });
-  }
-};
+// const obtenerTodosLosUsuarios = async (req, res) => {
+//   try {
+//     // Obtiene todos los usuarios ordenados alfabéticamente
+//     const result = await pool.query('SELECT * FROM usuarios ORDER BY nombre ASC');
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error('Error al obtener usuarios:', err);
+//     res.status(500).json({ error: 'Error al obtener la lista de usuarios' });
+//   }
+// };
 
-const obtenerUsuario = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
-    // Detiene la ejecución si no se encuentra ningún registro
-    if (result.rows.length === 0) return res.status(404).json({ msg: 'Usuario no encontrado' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+// const obtenerUsuario = async (req, res) => {
+//   const { id } = req.params;
+//   try {
+//     const result = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
+//     // Detiene la ejecución si no se encuentra ningún registro
+//     if (result.rows.length === 0) return res.status(404).json({ msg: 'Usuario no encontrado' });
+//     res.json(result.rows[0]);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 
 // CONTROLADORES DE CUESTIONARIOS
 
 
 const crearCuestionario = async (req, res) => {
-  const { id, usuarioId, progresoPreguntas, resultado } = req.body;
+  const { id, progresoPreguntas, resultado, ocupacion } = req.body; 
   
   try {
     const query = `
-      INSERT INTO cuestionarios (id, usuario_id, progreso_preguntas, resultado) 
+      INSERT INTO cuestionarios (id, progreso_preguntas, resultado, ocupacion) 
       VALUES ($1, $2, $3, $4) 
       RETURNING *
     `;
@@ -58,9 +58,9 @@ const crearCuestionario = async (req, res) => {
     //Convierte los datos complejos a texto para guardarlos en la base de datos
     const values = [
       id, 
-      usuarioId, 
-      JSON.stringify(progresoPreguntas), 
-      JSON.stringify(resultado)
+      JSON.stringify(progresoPreguntas || []), 
+      JSON.stringify(resultado || null),
+      ocupacion
     ];
     
     const result = await pool.query(query, values);
@@ -92,10 +92,10 @@ const obtenerCuestionario = async (req, res) => {
     //Renombra las propiedades de la base de datos para que coincidan con el frontend
     const respuestaFrontend = {
         id: data.id,
-        usuarioId: data.usuario_id,
         progresoPreguntas: data.progreso_preguntas, 
         resultado: data.resultado,
-        fechaFin: data.fecha_fin
+        fechaFin: data.fecha_fin,
+        ocupacion: data.ocupacion
     };
     
     res.json(respuestaFrontend);
@@ -319,9 +319,9 @@ const enviarResultadosPDF = async (req, res) => {
 
 
 module.exports = { 
-    crearUsuario, 
-    obtenerTodosLosUsuarios,
-    obtenerUsuario, 
+    // crearUsuario, 
+    // obtenerTodosLosUsuarios,
+    // obtenerUsuario, 
     
     crearCuestionario, 
     obtenerCuestionarios,

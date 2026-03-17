@@ -4,63 +4,63 @@
 const API_URL = '/api'; //NUEVA PARA PRODUCCIÓN EN UBUNTU
 
 
-export const UsuarioService = {
-  // Solicita al servidor la lista completa de todos los usuarios registrados
-  obtenerTodos: async () => {
-    try {
-      const respuesta = await fetch(`${API_URL}/usuarios`);
-      if (!respuesta.ok) return [];
-      return await respuesta.json();
-    } catch (error) {
-      console.error("Error obteniendo lista de usuarios:", error);
-      return [];
-    }
-  },
+// export const UsuarioService = {
+//   // Solicita al servidor la lista completa de todos los usuarios registrados
+//   obtenerTodos: async () => {
+//     try {
+//       const respuesta = await fetch(`${API_URL}/usuarios`);
+//       if (!respuesta.ok) return [];
+//       return await respuesta.json();
+//     } catch (error) {
+//       console.error("Error obteniendo lista de usuarios:", error);
+//       return [];
+//     }
+//   },
 
-  // Busca los datos de un usuario específico usando su identificador único
-  obtenerPorId: async (id) => {
-    try {
-      const respuesta = await fetch(`${API_URL}/usuarios/${id}`);
-      if (!respuesta.ok) return null;
-      return await respuesta.json();
-    } catch (error) {
-      console.error("Error conectando con API:", error);
-      return null;
-    }
-  },
+//   // Busca los datos de un usuario específico usando su identificador único
+//   obtenerPorId: async (id) => {
+//     try {
+//       const respuesta = await fetch(`${API_URL}/usuarios/${id}`);
+//       if (!respuesta.ok) return null;
+//       return await respuesta.json();
+//     } catch (error) {
+//       console.error("Error conectando con API:", error);
+//       return null;
+//     }
+//   },
 
-  // Intenta recuperar la sesión del último usuario que accedió desde este navegador
-  obtenerUltimo: async () => {
-    const idGuardado = localStorage.getItem('ultimoUserId');
-    if (idGuardado) {
-      return await UsuarioService.obtenerPorId(idGuardado);
-    }
-    return null;
-  },
+//   // Intenta recuperar la sesión del último usuario que accedió desde este navegador
+//   obtenerUltimo: async () => {
+//     const idGuardado = localStorage.getItem('ultimoUserId');
+//     if (idGuardado) {
+//       return await UsuarioService.obtenerPorId(idGuardado);
+//     }
+//     return null;
+//   },
 
-  // Registra un nuevo usuario en la base de datos y guarda su referencia localmente
-  crear: async (nuevoUsuario) => {
-    try {
-      const respuesta = await fetch(`${API_URL}/usuarios`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nuevoUsuario)
-      });
+//   // Registra un nuevo usuario en la base de datos y guarda su referencia localmente
+//   crear: async (nuevoUsuario) => {
+//     try {
+//       const respuesta = await fetch(`${API_URL}/usuarios`, {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify(nuevoUsuario)
+//       });
       
-      if (!respuesta.ok) throw new Error('Error al crear usuario en servidor');
+//       if (!respuesta.ok) throw new Error('Error al crear usuario en servidor');
       
-      const datos = await respuesta.json();
+//       const datos = await respuesta.json();
       
-      // Guarda el identificador en el navegador para facilitar el próximo acceso
-      localStorage.setItem('ultimoUserId', datos.id);
+//       // Guarda el identificador en el navegador para facilitar el próximo acceso
+//       localStorage.setItem('ultimoUserId', datos.id);
       
-      return datos;
-    } catch (error) {
-      console.error("Error creando usuario:", error);
-      throw error;
-    }
-  }
-};
+//       return datos;
+//     } catch (error) {
+//       console.error("Error creando usuario:", error);
+//       throw error;
+//     }
+//   }
+// };
 
 export const CuestionarioService = {
   // Descarga todas las preguntas o las filtra por nivel si se especifica

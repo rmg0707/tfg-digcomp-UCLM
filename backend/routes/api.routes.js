@@ -6,9 +6,9 @@ const upload = multer();
 const controller = require('../controllers/dataController');
 
 // --- RUTAS DE USUARIOS ---
-router.post('/usuarios', controller.crearUsuario);       // Crear uno nuevo
-router.get('/usuarios', controller.obtenerTodosLosUsuarios); // Obtener lista completa
-router.get('/usuarios/:id', controller.obtenerUsuario);  // Obtener uno específico
+// router.post('/usuarios', controller.crearUsuario);       // Crear uno nuevo
+// router.get('/usuarios', controller.obtenerTodosLosUsuarios); // Obtener lista completa
+// router.get('/usuarios/:id', controller.obtenerUsuario);  // Obtener uno específico
 
 // --- RUTAS DE CUESTIONARIOS ---
 router.get('/cuestionarios', controller.obtenerCuestionarios); // Obtener lista completa

@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, CheckCircle, UserX, FileQuestion, BarChart3, BookOpen, 
-  User, Briefcase, ArrowRight, Loader2, X, PenTool, AlertCircle,
-  UserCheck, LogOut, Layers
+  User, Loader2, X, AlertCircle, Layers, Briefcase, PenTool, ShieldCheck
 } from 'lucide-react';
 
 // Importar servicios de datos
-import { UsuarioService, CuestionarioService } from '../services/dataService';
+import { CuestionarioService } from '../services/dataService';
 import './Home.css';
 
 // IMPORTAR LOGO (Asegúrate de que la ruta sea correcta)
@@ -22,35 +21,21 @@ const Home = () => {
   const [error, setError] = useState('');
 
   // Estados de datos
-  const [usuarioDetectado, setUsuarioDetectado] = useState(null);
   const [nombre, setNombre] = useState('');
   const [ocupacion, setOcupacion] = useState(''); 
-  const [otraOcupacion, setOtraOcupacion] = useState(''); 
+  const [otraOcupacion, setOtraOcupacion] = useState('');
 
   // NUEVOS ESTADOS: 'general' viene seleccionado por defecto
   const [tipoTest, setTipoTest] = useState('general');
   const [nivelSeleccionado, setNivelSeleccionado] = useState('');
 
-  // Consultar usuario previo
-  const alIniciar = async (e) => {
+  const alIniciar = (e) => {
     e.preventDefault();
-    try {
-      const ultimoUsuario = await UsuarioService.obtenerUltimo();
-      if (ultimoUsuario) {
-        setUsuarioDetectado(ultimoUsuario);
-      } else {
-        setIniciando(true);
-      }
-    } catch (err) {
-      console.error("Error al iniciar:", err);
-      setIniciando(true);
-    }
+    setIniciando(true);
   };
 
-  // Resetear formulario
   const alCancelar = () => {
     setIniciando(false);
-    setUsuarioDetectado(null);
     setNombre('');
     setOcupacion('');
     setOtraOcupacion('');
@@ -59,63 +44,24 @@ const Home = () => {
     setError('');
   };
 
-  // Continuar sesión existente
-  const alContinuarSesion = async () => {
-    if (!usuarioDetectado) return;
-    
-    if (tipoTest === 'nivel' && !nivelSeleccionado) {
-      setError("Debes seleccionar un nivel para continuar.");
-      return;
-    }
-
-    setError('');
-    setCargando(true);
-
-    const idCuestionario = crypto.randomUUID();
-    
-    // Preparar objeto cuestionario
-    const nuevoCuestionario = { 
-      id: idCuestionario, 
-      usuarioId: usuarioDetectado.id,
-      tipo: tipoTest,
-      nivel: tipoTest === 'nivel' ? nivelSeleccionado : null,
-      fechaFin: null, 
-      progresoPreguntas: [], 
-      resultado: null 
-    };
-
-    // Guardar cuestionario
-    await CuestionarioService.crear(nuevoCuestionario);
-    navegar(`/cuestionario?id=${idCuestionario}&tipo=${tipoTest}${tipoTest === 'nivel' ? `&nivel=${nivelSeleccionado}` : ''}`);
-  };
-
-  // Cambiar usuario
-  const alCambiarUsuario = () => {
-    setUsuarioDetectado(null);
-    setIniciando(true);
-    setTipoTest('general');
-    setNivelSeleccionado('');
-    setError('');
-  };
-
-  // Manejar cambios en inputs
   const alCambiarInput = (setter) => (e) => {
     setter(e.target.value);
     if (error) setError('');
   };
 
-  // Validar y registrar nuevo usuario
   const alConfirmarRegistro = async (e) => {
     e.preventDefault();
+    
+    // Validación de la ocupación
     const ocupacionFinal = ocupacion === 'Otro' ? otraOcupacion.trim() : ocupacion;
 
     // Validar campos
     if (!nombre.trim()) {
-      setError("El nombre es obligatorio para continuar.");
+      setError("El nombre es obligatorio para personalizar tu informe.");
       return;
     }
     if (!ocupacion || (ocupacion === 'Otro' && !ocupacionFinal)) {
-      setError("Debes especificar tu ocupación.");
+      setError("Debes especificar tu ocupación para continuar.");
       return;
     }
     if (tipoTest === 'nivel' && !nivelSeleccionado) {
@@ -126,26 +72,27 @@ const Home = () => {
     setError('');
     setCargando(true);
 
-    // Generar IDs
-    const idUsuario = crypto.randomUUID();
     const idCuestionario = crypto.randomUUID();
 
-    const nuevoUsuario = { id: idUsuario, nombre, ocupacion: ocupacionFinal };
     const nuevoCuestionario = { 
       id: idCuestionario, 
-      usuarioId: idUsuario, 
       tipo: tipoTest,
       nivel: tipoTest === 'nivel' ? nivelSeleccionado : null,
       fechaFin: null, 
       progresoPreguntas: [], 
-      resultado: null 
+      resultado: null,
+      ocupacion: ocupacionFinal
     };
 
-    // Crear registros
-    await UsuarioService.crear(nuevoUsuario);
-    await CuestionarioService.crear(nuevoCuestionario);
-
-    navegar(`/cuestionario?id=${idCuestionario}&tipo=${tipoTest}${tipoTest === 'nivel' ? `&nivel=${nivelSeleccionado}` : ''}`);
+    try {
+      await CuestionarioService.crear(nuevoCuestionario);
+      // Pasamos el nombre por la URL (la ocupación se guarda en la BBDD, no viaja por URL)
+      navegar(`/cuestionario?id=${idCuestionario}&tipo=${tipoTest}${tipoTest === 'nivel' ? `&nivel=${nivelSeleccionado}` : ''}&nombre=${encodeURIComponent(nombre.trim())}`);
+    } catch (err) {
+      console.error("Error:", err);
+      setError("Error al conectar con el servidor. Inténtalo de nuevo.");
+      setCargando(false);
+    }
   };
 
   const niveles = [
@@ -210,92 +157,87 @@ const Home = () => {
         <img src={logoUCLM} alt="Universidad de Castilla-La Mancha" className="main-logo" />
       </header>
       
-      {/* Modal usuario recurrente */}
-      {usuarioDetectado && (
-        <>
-          <div className="form-overlay" onClick={() => setUsuarioDetectado(null)}></div>
-          <div className="start-form-container">
-            <div className="form-header">
-              <div><h3>¡Hola de nuevo!</h3><p>Hemos detectado un perfil anterior.</p></div>
-              <button onClick={() => setUsuarioDetectado(null)} className="btn-close"><X size={24}/></button>
-            </div>
-            <div className="user-card-preview">
-              <div className="user-avatar-placeholder"><User size={24}/></div>
-              <div className="user-info"><h4>{usuarioDetectado.nombre}</h4><p>{usuarioDetectado.ocupacion}</p></div>
-            </div>
-
-            {renderSelectorTest()}
-
-            {error && <div className="error-message" style={{ marginBottom: '1rem' }}><AlertCircle size={20} />{error}</div>}
-
-            <button onClick={alContinuarSesion} className="btn-submit" disabled={cargando}>
-              {cargando ? <Loader2 className="animate-spin" /> : <><UserCheck size={20}/> Continuar como {usuarioDetectado.nombre.split(' ')[0]}</>}
-            </button>
-            <button onClick={alCambiarUsuario} className="btn-switch-user"><LogOut size={18}/> No soy yo, crear nuevo</button>
-          </div>
-        </>
-      )}
-
       {/* Modal nuevo registro */}
-      {iniciando && !usuarioDetectado && (
+      {iniciando && (
         <>
           <div className="form-overlay" onClick={alCancelar}></div>
           <div className="start-form-container">
             <div className="form-header">
-              <div><h3>¡Casi listo!</h3><p>Completa tus datos.</p></div>
+              <div><h3>¡Bienvenido!</h3><p>Introduce tus datos para el informe.</p></div>
               <button onClick={alCancelar} className="btn-close"><X size={24}/></button>
             </div>
             <form onSubmit={alConfirmarRegistro}>
               
-              <div className="input-wrapper">
-                <label className="input-label"><User size={18} strokeWidth={2.5}/> Nombre Completo</label>
-                <input 
-                  type="text" 
-                  className={`form-input ${error && !nombre ? 'error' : ''}`} 
-                  placeholder="Ej. Ana García" 
-                  value={nombre} 
-                  onChange={alCambiarInput(setNombre)} 
-                  autoFocus 
-                  maxLength={50}
-                />
+              <div className="form-row">
+                <div className="input-wrapper">
+                  <label className="input-label"><User size={18} strokeWidth={2.5}/> Nombre</label>
+                  <input 
+                    type="text" 
+                    className={`form-input ${error && !nombre ? 'error' : ''}`} 
+                    placeholder="Ej. Ana García" 
+                    value={nombre} 
+                    onChange={alCambiarInput(setNombre)} 
+                    autoFocus 
+                    maxLength={50}
+                  />
+                </div>
+
+                <div className="input-wrapper">
+                  <label className="input-label"><Briefcase size={18} strokeWidth={2.5}/> Ocupación</label>
+                  <select className={`form-input ${error && !ocupacion ? 'error' : ''}`} value={ocupacion} onChange={alCambiarInput(setOcupacion)}>
+                    <option value="" disabled>Selecciona una opción...</option>
+                    <option value="Estudiante">Estudiante</option>
+                    <option value="Docente">Docente</option>
+                    <option value="Administrativo">Administrativo</option>
+                    <option value="Directivo">Directivo</option>
+                    <option value="Profesional IT">Profesional IT</option>
+                    <option value="Desempleado">Desempleado</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="input-wrapper">
-                <label className="input-label"><Briefcase size={18} strokeWidth={2.5}/> Ocupación</label>
-                <select className={`form-input ${error && !ocupacion ? 'error' : ''}`} value={ocupacion} onChange={alCambiarInput(setOcupacion)}>
-                  <option value="" disabled>Selecciona una opción...</option>
-                  <option value="Estudiante">Estudiante</option>
-                  <option value="Docente">Docente</option>
-                  <option value="Administrativo">Administrativo</option>
-                  <option value="Directivo">Directivo</option>
-                  <option value="Profesional IT">Profesional IT</option>
-                  <option value="Desempleado">Desempleado</option>
-                  <option value="Otro">Otro</option>
-                </select>
-                {ocupacion === 'Otro' && (
-                  <div className="other-input-container">
-                    <div className="input-label" style={{ fontSize: '0.8rem', color: '#334155', marginTop: '0.5rem' }}>
-                      <PenTool size={14} style={{ marginRight: 6 }}/> Especifique:
-                    </div>
-                    <input 
-                      type="text" 
-                      className={`form-input ${error && !otraOcupacion ? 'error' : ''}`} 
-                      placeholder="Escriba su ocupación..." 
-                      value={otraOcupacion} 
-                      onChange={alCambiarInput(setOtraOcupacion)} 
-                      maxLength={50}
-                    />
+              {ocupacion === 'Otro' && (
+                <div className="input-wrapper other-input-container">
+                  <div className="other-input-label">
+                    <PenTool size={14} /> Especifique su ocupación:
                   </div>
-                )}
-              </div>
+                  <input 
+                    type="text" 
+                    className={`form-input ${error && !otraOcupacion ? 'error' : ''}`} 
+                    placeholder="Escriba su ocupación..." 
+                    value={otraOcupacion} 
+                    onChange={alCambiarInput(setOtraOcupacion)} 
+                    maxLength={50}
+                  />
+                </div>
+              )}
 
               {renderSelectorTest()}
 
-              {error && <div className="error-message" style={{ marginTop: '0.5rem' }}><AlertCircle size={20} />{error}</div>}
+              {error && <div className="error-message"><AlertCircle size={20} />{error}</div>}
               
-              <button type="submit" className="btn-submit" disabled={cargando} style={{ marginTop: '1rem' }}>
+              <div className="privacy-box">
+                <div className="privacy-header">
+                  <ShieldCheck size={16} /> Protección de Datos
+                </div>
+                <p className="privacy-text">
+                  Le informamos que los datos que nos facilite sobre su nombre, ocupación y correo electrónico los utilizaremos exclusivamente para la personalización y envío de su informe de autoevaluación, no los almacenaremos ni usaremos para ninguna otra finalidad.
+                </p>
+                <p className="privacy-text">
+                  Puede ejercer los derechos recogidos en la normativa de protección de datos personales, mediante solicitud dirigida al delegado de protección de datos de la Universidad de Castilla-La Mancha en la dirección electrónica <a href="mailto:proteccion.datos@uclm.es" className="privacy-link">proteccion.datos@uclm.es</a>. Puede obtener más información en <a href="https://www.uclm.es/psi" target="_blank" rel="noopener noreferrer" className="privacy-link">www.uclm.es/psi</a>.
+                </p>
+              </div>
+              
+              {/* <button type="submit" className="btn-submit" disabled={cargando}>
                 {cargando ? <Loader2 className="animate-spin" /> : <>Comenzar Ahora <ArrowRight size={20}/></>}
-              </button>
+              </button> */}
+
+              {/* QUITAR CUANDO ESTE EL CUESTIONARIO BIEN Y DESCOMENTAR BOTON*/}
+              <br></br>
+              <span style={{ textAlign: 'center', color: 'red', display: 'block' ,fontWeight: 'bold', fontSize: '1.1rem'}}>El acceso al cuestionario estará activo en breve. Disculpe las molestias.</span>
+
+
             </form>
           </div>
         </>

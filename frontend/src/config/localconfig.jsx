@@ -41,6 +41,7 @@ export const obtenerObjetoNivelDesdeCodigo = (codigo) => {
   return mapaFinal[codigo] || mapaFinal['A1']; 
 };
 
+// CÁLCULO PROPORCIONAL ESCALONADO
 export const calcularNivelAdaptado = (puntuacionEvaluada, tipoTest = 'general', nivelTest = null) => {
   // Si es general o no hay nivel definido, aplicamos la regla estándar
   if (tipoTest === 'general' || !nivelTest) {
@@ -51,22 +52,31 @@ export const calcularNivelAdaptado = (puntuacionEvaluada, tipoTest = 'general', 
   const indexTest = NIVELES_ORDENADOS.indexOf(nivelTest);
   if (indexTest === -1) return getNivelDetallado(puntuacionEvaluada); 
 
+  let indiceResultante = indexTest;
+
+  // Por cada 20 puntos por debajo del 80%, bajamos un nivel. 
+  // Ej: Un 53% en C1 ahora baja solo 2 niveles -> B1 (No a A1)
   if (puntuacionEvaluada >= 80) {
-    return obtenerObjetoNivelDesdeCodigo(NIVELES_ORDENADOS[indexTest]);
-  } else if (puntuacionEvaluada >= 60 && indexTest >= 1) {
-    return obtenerObjetoNivelDesdeCodigo(NIVELES_ORDENADOS[indexTest - 1]);
+    indiceResultante = indexTest;
+  } else if (puntuacionEvaluada >= 60) {
+    indiceResultante = indexTest - 1;
+  } else if (puntuacionEvaluada >= 40) {
+    indiceResultante = indexTest - 2;
+  } else if (puntuacionEvaluada >= 20) {
+    indiceResultante = indexTest - 3;
   } else {
-    return obtenerObjetoNivelDesdeCodigo('A1');
+    indiceResultante = indexTest - 4;
   }
+
+  // Asegurarnos de que el índice nunca sea menor a 0 (Nivel A1)
+  indiceResultante = Math.max(0, indiceResultante);
+
+  return obtenerObjetoNivelDesdeCodigo(NIVELES_ORDENADOS[indiceResultante]);
 };
 
-// Define colores y textos para Web y PDF usando el nivel adaptado
-export const getEstadoDesempeño = (score, tipoTest = 'general', nivelTest = null) => {
-  const nivel = calcularNivelAdaptado(score, tipoTest, nivelTest);
-  const codigo = nivel.codigo;
-
-  // Niveles iniciales rojo
-  if (['A1', 'A2'].includes(codigo)) {
+// COLORES DESVINCULADOS DE LAS SIGLAS (Basados puro en %)
+export const getEstadoDesempeño = (score) => {
+  if (score <= 35) {
     return {
       texto: "MEJORAR",
       colorHex: '#ef4444',      
@@ -74,8 +84,7 @@ export const getEstadoDesempeño = (score, tipoTest = 'general', nivelTest = nul
       bgHex: '#fee2e2'          
     };
   }
-  // Niveles medios amarillo
-  if (['B1', 'B2'].includes(codigo)) {
+  if (score <= 70) {
     return {
       texto: "COMPETENTE",
       colorHex: '#eab308',
@@ -83,7 +92,6 @@ export const getEstadoDesempeño = (score, tipoTest = 'general', nivelTest = nul
       bgHex: '#fef9c3'
     };
   }
-  // Niveles altos verde
   return {
     texto: "ÓPTIMO",
     colorHex: '#16a34a',
