@@ -84,38 +84,60 @@ const generarBateriaPreguntas = (todasLasPreguntas, nivelUnico = null) => {
     ? bancoFormateado.filter(p => p.nivel === nivelUnico)
     : bancoFormateado;
 
-  // Se agrupa por tipo
-  const grupos = {
-    SELECCION: [],
-    TEST: [],
-    VF: [],
-    CLASIFICACION: []
+  if (poolDisponible.length === 0) return [];
+
+  const shuffle = (array) => array.sort(() => 0.5 - Math.random());
+  const poolMezclado = shuffle([...poolDisponible]);
+
+  // Cuotas objetivo requeridas
+  const cuotasArea = { '1': 6, '2': 12, '3': 8, '4': 8, '5': 8 };
+  const cuotasTipo = { 'SELECCION': 28, 'TEST': 6, 'VF': 5, 'CLASIFICACION': 3 };
+
+  const contadoresArea = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+  const contadoresTipo = { 'SELECCION': 0, 'TEST': 0, 'VF': 0, 'CLASIFICACION': 0 };
+
+  const seleccionFinal = [];
+
+  // Normalización flexible del tipo de pregunta
+  const obtenerGrupoTipo = (tipoStr) => {
+    const t = (tipoStr || '').toUpperCase();
+    if (t.includes('SELECCION') || t.includes('SELECCIÓN') || t.includes('SABER HACER')) return 'SELECCION';
+    if (t.includes('TEST')) return 'TEST';
+    if (t.includes('VERDADERO') || t.includes('FALSO') || t.includes('VF')) return 'VF';
+    if (t.includes('CLASIFICACION') || t.includes('CLASIFICACIÓN')) return 'CLASIFICACION';
+    return 'OTRO';
   };
 
-  poolDisponible.forEach(p => {
-    const tipo = (p.tipoPregunta || '').toUpperCase();
-    
-    if (tipo.includes('SELECCION') || tipo.includes('SELECCIÓN')) {
-      grupos.SELECCION.push(p);
-    } else if (tipo.includes('TEST')) {
-      grupos.TEST.push(p);
-    } else if (tipo.includes('VERDADERO') || tipo.includes('FALSO') || tipo.includes('VF')) {
-      grupos.VF.push(p);
-    } else if (tipo.includes('CLASIFICACION') || tipo.includes('CLASIFICACIÓN')) {
-      grupos.CLASIFICACION.push(p);
+  // Extracción del área buscando el primer número en el código o en el nombre del área
+  const obtenerAreaId = (p) => {
+    if (p.codigo) {
+      const match = p.codigo.toString().match(/\d+/); 
+      if (match) return match[0];
     }
-  });
+    if (p.areaDigComp) {
+      const matchArea = p.areaDigComp.toString().match(/\d+/);
+      if (matchArea) return matchArea[0];
+    }
+    return null;
+  };
 
-  // Aleatoriza cada grupo
-  const shuffle = (array) => array.sort(() => 0.5 - Math.random());
+  // Asignación cruzada: añade la pregunta solo si quedan huecos libres en su Área y en su Tipo
+  for (const p of poolMezclado) {
+    const areaId = obtenerAreaId(p);
+    const tipoId = obtenerGrupoTipo(p.tipoPregunta);
 
-  // 28 Seleccion/saber hacer, 6 tipo test, 5 Verdadero falso y 3 columnas
-  const seleccionFinal = [
-    ...shuffle(grupos.SELECCION).slice(0, 28),
-    ...shuffle(grupos.TEST).slice(0, 6),
-    ...shuffle(grupos.VF).slice(0, 5),
-    ...shuffle(grupos.CLASIFICACION).slice(0, 3)
-  ];
+    if (areaId && cuotasArea[areaId] && tipoId && cuotasTipo[tipoId]) {
+      if (
+        contadoresArea[areaId] < cuotasArea[areaId] && 
+        contadoresTipo[tipoId] < cuotasTipo[tipoId]
+      ) {
+        seleccionFinal.push(p);
+        contadoresArea[areaId]++;
+        contadoresTipo[tipoId]++;
+      }
+    }
+    if (seleccionFinal.length === 42) break;
+  }
 
   return shuffle(seleccionFinal).map(p => mezclarOpciones(p));
 };
@@ -625,7 +647,6 @@ function Cuestionario() {
           <div className="quiz-title"><h1>Pregunta <span translate="no">{indiceActual + 1}</span></h1>
             <div className="quiz-subtitle">
               <span>Área: <span translate="no">{preguntaActual.areaDigComp}</span> · Competencia: <span translate="no">{preguntaActual.competenciaDigComp}</span></span>
-              <span className="badge-nivel">Nivel {preguntaActual.nivel}</span>
             </div>
           </div>
           <div className="quiz-counter" translate="no">
@@ -640,7 +661,7 @@ function Cuestionario() {
         <div className="card-content">
           <div className="tags-container">
             <span className={`tag ${estiloIcono.claseColor}`}>{estiloIcono.icono} {preguntaActual.areaDigComp}</span>
-            <span className="tag tag-secondary"><Lightbulb size={16} /> {preguntaActual.tipoPregunta}</span>
+            <span className="tag badge-nivel">Nivel {preguntaActual.nivel}</span>
           </div>
 
           <h2 className="question-text">{preguntaActual.enunciado}</h2>

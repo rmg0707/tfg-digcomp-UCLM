@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, CheckCircle, UserX, FileQuestion, BarChart3, BookOpen, 
-  User, Loader2, X, AlertCircle, Layers, Briefcase, PenTool, ShieldCheck
+  User, Loader2, X, AlertCircle, Layers, Briefcase, PenTool, ShieldCheck, ArrowRight
 } from 'lucide-react';
 
 // Importar servicios de datos
@@ -163,7 +163,7 @@ const Home = () => {
           <div className="form-overlay" onClick={alCancelar}></div>
           <div className="start-form-container">
             <div className="form-header">
-              <div><h3>¡Bienvenido!</h3><p>Introduce tus datos para el informe.</p></div>
+              <div><h3>¡Bienvenido!</h3><p>Introduce tus datos para personalizar el informe.</p></div>
               <button onClick={alCancelar} className="btn-close"><X size={24}/></button>
             </div>
             <form onSubmit={alConfirmarRegistro}>
@@ -229,15 +229,9 @@ const Home = () => {
                 </p>
               </div>
               
-              {/* <button type="submit" className="btn-submit" disabled={cargando}>
+              <button type="submit" className="btn-submit" disabled={cargando}>
                 {cargando ? <Loader2 className="animate-spin" /> : <>Comenzar Ahora <ArrowRight size={20}/></>}
-              </button> */}
-
-              {/* QUITAR CUANDO ESTE EL CUESTIONARIO BIEN Y DESCOMENTAR BOTON*/}
-              <br></br>
-              <span style={{ textAlign: 'center', color: 'red', display: 'block' ,fontWeight: 'bold', fontSize: '1.1rem'}}>El acceso al cuestionario estará activo en breve. Disculpe las molestias.</span>
-
-
+              </button>
             </form>
           </div>
         </>
