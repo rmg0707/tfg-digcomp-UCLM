@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Shield, Lightbulb, LogOut, HelpCircle, ArrowRight,
+  Shield, Lightbulb, LogOut, HelpCircle, ArrowRight, ArrowLeft,
   Wrench, FileText, Mail, Search, Settings, X,
   Sun, Moon, Eye, Plus, ExternalLink, ZoomIn, Loader
 } from 'lucide-react';
@@ -346,6 +346,44 @@ const VistaClasificacion = ({ pregunta, estadoTablero, fichasDisponibles, column
   );
 };
 
+const ModalConfirmacionSalida = ({ mostrar, alCancelar, alConfirmar }) => {
+  if (!mostrar) return null;
+
+  return (
+    <div className="modal-overlay" onClick={alCancelar}>
+      <div className="modal-content modal-exit" onClick={(e) => e.stopPropagation()}>
+        <h3 className="modal-exit-title">¿Seguro que quieres salir?</h3>
+        <p className="modal-exit-text">
+          Se perderá todo tu progreso actual y el cuestionario será eliminado. Esta acción no se puede deshacer.
+        </p>
+        
+        <div className="modal-exit-actions">
+          <button className="btn btn-secondary" onClick={alCancelar}>
+            Cancelar
+          </button>
+          <button className="btn btn-danger" onClick={alConfirmar}>
+            Sí, salir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ModalZoomImagen = ({ imagenUrl, alCerrar }) => {
+  if (!imagenUrl) return null;
+
+  return (
+    <div className="image-modal-overlay" onClick={alCerrar}>
+      <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="image-modal-close" onClick={alCerrar}><X size={32} /></button>
+        <img src={imagenUrl} alt="Zoom" />
+      </div>
+    </div>
+  );
+};
+
+
 // ==========================================
 // COMPONENTE PRINCIPAL CUESTIONARIO
 // ==========================================
@@ -371,6 +409,7 @@ function Cuestionario() {
   const efectoEjecutado = useRef(false);
   const puedeBorrar = useRef(false);
   const tiempoInicioPregunta = useRef(null);
+  const tiemposAcumulados = useRef({});       //Para seguir aumentando tiempo en pregunta X si se vuelve a ella
 
   const [indiceActual, setIndiceActual] = useState(0);
   const [respuestasUsuario, setRespuestasUsuario] = useState({});
@@ -383,6 +422,7 @@ function Cuestionario() {
   const [mostrarMenu, setMostrarMenu] = useState(false);
   const [configVisual, setConfigVisual] = useState({ nivelTexto: 0, modoOscuro: false, altoContraste: false });
   const [imagenZoom, setImagenZoom] = useState(null);
+  const [mostrarModalSalir, setMostrarModalSalir] = useState(false);
 
   // Aplicar temas visuales
   useEffect(() => {
@@ -438,7 +478,13 @@ function Cuestionario() {
     }
   }, [indiceActual, cargando, bateriaPreguntas.length]);
 
-  const cancelarCuestionario = () => { navegar('/'); };
+  const intentarSalir = () => { 
+    setMostrarModalSalir(true); 
+  };
+
+  const confirmarSalida = () => { 
+    navegar('/'); 
+  };
 
   const alResponderVF = (idItem, valor) => {
     const actuales = respuestasUsuario[preguntaActual.id] || {};
@@ -451,6 +497,30 @@ function Cuestionario() {
     Object.keys(nuevoEstado).forEach(k => { nuevoEstado[k] = nuevoEstado[k].filter(t => t !== textoFicha); });
     if (colId !== null) nuevoEstado[colId].push(textoFicha);
     setTablerosClasificacion({ ...tablerosClasificacion, [preguntaActual.id]: nuevoEstado });
+  };
+
+
+  // Volver a la pregunta anterior
+  const volverPreguntaAtras = () => {
+    if (indiceActual > 0) {
+      //Acumula tiempo de la pregunta en la que estábamos antes de irnos
+      const fechaFin = new Date();
+      const duracionParcial = (fechaFin - tiempoInicioPregunta.current) / 1000;
+      const idActual = preguntaActual.id;
+      tiemposAcumulados.current[idActual] = (tiemposAcumulados.current[idActual] || 0) + duracionParcial;
+      const nuevoIndice = indiceActual - 1;
+      
+      // Elimina el último resultado del historial
+      const nuevoHistorial = [...historialResultados];
+      nuevoHistorial.pop(); 
+      setHistorialResultados(nuevoHistorial);
+
+      setColumnaActiva(null);
+
+      //Actualiza la BBDD
+      CuestionarioService.actualizar(idCuestionario, { progresoPreguntas: nuevoHistorial, resultado: null }).catch(() => { });
+      setIndiceActual(nuevoIndice);
+    }
   };
 
   // Avanzar y procesar resultados
@@ -521,8 +591,14 @@ function Cuestionario() {
   const procesarIntento = (esNoSabe = false) => {
     const fechaInicio = tiempoInicioPregunta.current;
     const fechaFin = new Date();
+    
+    // Calcula y suma los segundos de esta pregunta específica
+    const duracionParcial = (fechaFin - fechaInicio) / 1000;
+    const idActual = preguntaActual.id;
+    tiemposAcumulados.current[idActual] = (tiemposAcumulados.current[idActual] || 0) + duracionParcial;
+    
     // Duración en segundos con 2 decimales
-    const duracionSegundos = parseFloat(((fechaFin - fechaInicio) / 1000).toFixed(2)); 
+    const duracionTotalSegundos = parseFloat(tiemposAcumulados.current[idActual].toFixed(2)); 
     
     // Formato ISO para la base de datos (Ej: 2023-10-25T10:00:00.000Z)
     const fechaInicioIso = fechaInicio.toISOString();
@@ -546,7 +622,7 @@ function Cuestionario() {
       estado: 'NO_SABE', 
       fechaInicio: fechaInicioIso, 
       fechaFin: fechaFinIso, 
-      duracion: duracionSegundos,
+      duracion: duracionTotalSegundos,
       respuestaUsuario: "NO_SABE"
     });
 
@@ -591,7 +667,7 @@ function Cuestionario() {
       estado: porcentajeAcierto === 1 ? 'CORRECTO' : porcentajeAcierto > 0 ? 'PARCIAL' : 'INCORRECTO',
       fechaInicio: fechaInicioIso, 
       fechaFin: fechaFinIso, 
-      duracion: duracionSegundos,
+      duracion: duracionTotalSegundos,
       respuestaUsuario: respuestaDada
     });
   };
@@ -740,20 +816,22 @@ function Cuestionario() {
       </div>
 
       <div className="quiz-actions">
-        <button className="btn btn-secondary" onClick={cancelarCuestionario} disabled={guardando}><LogOut size={18} /> Salir</button>
-        <div className="actions-right">
-          <button className="btn btn-secondary" onClick={() => procesarIntento(true)} disabled={guardando}><HelpCircle size={18} /> No lo sé</button>
+        <button className="btn btn-secondary" onClick={intentarSalir} disabled={guardando}><LogOut size={18} /> Salir</button>
+        <div className="actions-right">          
+          {/* BOTÓN DE VOLVER (Solo se muestra si hay una pregunta anterior) */}
+          {indiceActual > 0 && (
+            <button className="btn btn-secondary" onClick={volverPreguntaAtras} disabled={guardando}><ArrowLeft size={18} /> Atrás</button>
+          )}
+          <button className="btn btn-secondary" onClick={() => procesarIntento(true)} disabled={guardando}><HelpCircle size={18} /> No lo sé</button>          
           <button className="btn btn-primary" onClick={() => procesarIntento(false)} disabled={!puedeContinuar || guardando}>{guardando ? 'Guardando...' : <>Siguiente <ArrowRight size={18} /></>}</button>
         </div>
       </div>
-      {imagenZoom && (
-        <div className="image-modal-overlay" onClick={() => setImagenZoom(null)}>
-          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="image-modal-close" onClick={() => setImagenZoom(null)}><X size={32} /></button>
-            <img src={imagenZoom} alt="Zoom" />
-          </div>
-        </div>
-      )}
+
+      {/*Modales de salir e imagen*/}
+      <ModalConfirmacionSalida mostrar={mostrarModalSalir} alCancelar={() => setMostrarModalSalir(false)} alConfirmar={confirmarSalida} />
+      
+      <ModalZoomImagen imagenUrl={imagenZoom} alCerrar={() => setImagenZoom(null)} />
+
     </div>
   );
 }

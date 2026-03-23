@@ -787,3 +787,53 @@ input:checked + .slider:before { transform: translate(24px, -50%); }
   .actions-right { flex-direction: column; }
   .btn { width: 100%; justify-content: center; }
 }
+
+
+/* Modal confirmacion salida */
+.modal-content.modal-exit {
+  max-width: 400px;
+  text-align: center;
+}
+
+.modal-exit-title {
+  margin-bottom: 0.75rem;
+  color: #ef4444;
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.modal-exit-text {
+  margin-bottom: 1.5rem;
+  color: var(--text-sec);
+}
+
+.modal-exit-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+  border: 2px solid #ef4444;
+}
+
+.btn-danger:hover {
+  background-color: #c01717;
+  border-color: #c01717;
+  color: white;
+}
+
+/* Compatibilidad con el modo Alto Contraste */
+.high-contrast .btn-danger {
+  background-color: transparent !important;
+  color: var(--text-main) !important;
+  border: 2px solid var(--text-main) !important;
+}
+
+.high-contrast .btn-danger:hover {
+  background-color: var(--text-main) !important;
+  color: var(--bg-page) !important;
+}
