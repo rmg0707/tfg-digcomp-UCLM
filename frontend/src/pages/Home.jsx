@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, CheckCircle, UserX, FileQuestion, BarChart3, BookOpen, 
-  User, Loader2, X, AlertCircle, Layers, Briefcase, PenTool, ShieldCheck, ArrowRight
+  User, Loader2, X, AlertCircle, Layers, Briefcase, PenTool, ShieldCheck, ArrowRight,
+  RotateCcw, Trash2
 } from 'lucide-react';
 
 // Importar servicios de datos
 import { CuestionarioService } from '../services/dataService';
 import './Home.css';
 
-// IMPORTAR LOGO (Asegúrate de que la ruta sea correcta)
+// IMPORTAR LOGO
 import logoUCLM from '../assets/Logo_UCLM_40.png';
 
 const Home = () => {
@@ -19,6 +20,18 @@ const Home = () => {
   const [iniciando, setIniciando] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+  
+  // ESTADOS PARA RECUPERAR INTENTO
+  const [intentoGuardado, setIntentoGuardado] = useState(() => {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('digcomp_progreso_')) {
+        return key.replace('digcomp_progreso_', '');
+      }
+    }
+    return null;
+  });
+  const [mostrarModalRecuperar, setMostrarModalRecuperar] = useState(false);
 
   // Estados de datos
   const [nombre, setNombre] = useState('');
@@ -29,9 +42,30 @@ const Home = () => {
   const [tipoTest, setTipoTest] = useState('general');
   const [nivelSeleccionado, setNivelSeleccionado] = useState('');
 
+  // NUEVO ESTADO: REACTIVO PARA COOKIES
+  const [cookiesAceptadas, setCookiesAceptadas] = useState(
+    () => localStorage.getItem('cookiesAceptadas') === 'true'
+  );
+
+  useEffect(() => {
+    const actualizarEstadoCookies = () => {
+      setCookiesAceptadas(localStorage.getItem('cookiesAceptadas') === 'true');
+    };
+    
+    // Escucha el evento del CookieBanner al pulsar Aceptar/Rechazar
+    window.addEventListener('cookiesActualizadas', actualizarEstadoCookies);
+    
+    return () => window.removeEventListener('cookiesActualizadas', actualizarEstadoCookies);
+  }, []);
+
   const alIniciar = (e) => {
     e.preventDefault();
-    setIniciando(true);
+    // Si hay un intento guardado y las cookies están aceptadas, preguntamos.
+    if (intentoGuardado && cookiesAceptadas) {
+      setMostrarModalRecuperar(true);
+    } else {
+      setIniciando(true);
+    }
   };
 
   const alCancelar = () => {
@@ -47,6 +81,28 @@ const Home = () => {
   const alCambiarInput = (setter) => (e) => {
     setter(e.target.value);
     if (error) setError('');
+  };
+
+  const retomarCuestionario = () => {
+    navegar(`/cuestionario?id=${intentoGuardado}`);
+  };
+
+  const empezarCuestionarioNuevo = async () => {
+    setCargando(true);
+    // Borra progreso local
+    localStorage.removeItem(`digcomp_progreso_${intentoGuardado}`);
+    
+    try {
+      await CuestionarioService.eliminar(intentoGuardado);
+    } catch (err) {
+      console.warn("No se pudo borrar el test antiguo de la BBDD o ya no existía.", err);
+    }
+    
+    //Limpia estado y crea formulario
+    setIntentoGuardado(null);
+    setMostrarModalRecuperar(false);
+    setCargando(false);
+    setIniciando(true);
   };
 
   const alConfirmarRegistro = async (e) => {
@@ -157,8 +213,44 @@ const Home = () => {
         <img src={logoUCLM} alt="Universidad de Castilla-La Mancha" className="main-logo" />
       </header>
       
+      {/* modal recuperar intento */}
+      {mostrarModalRecuperar && (
+        <>
+          <div className="form-overlay" onClick={() => setMostrarModalRecuperar(false)}></div>
+          <div className="start-form-container" style={{ maxWidth: '450px', textAlign: 'center' }}>
+            <div className="form-header" style={{ justifyContent: 'center' }}>
+              <div><h3 style={{ margin: 0, color: '#1e293b' }}>Evaluación pendiente</h3></div>
+            </div>
+            <div style={{ padding: '1rem 0 2rem 0' }}>
+              <p style={{ color: '#475569', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                Hemos detectado que tienes un intento sin terminar. ¿Qué deseas hacer?
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <button 
+                  onClick={retomarCuestionario} 
+                  className="btn-submit" 
+                  style={{ width: '100%', justifyContent: 'center' }}
+                >
+                  <RotateCcw size={20}/> Continuar evaluación
+                </button>
+                
+                <button 
+                  onClick={empezarCuestionarioNuevo} 
+                  className="btn btn-secondary" 
+                  style={{ width: '100%', justifyContent: 'center', borderColor: '#cbd5e1', color: '#64748b' }}
+                  disabled={cargando}
+                >
+                  {cargando ? <Loader2 className="animate-spin" /> : <><Trash2 size={18}/> Descartar intento y empezar de cero</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Modal nuevo registro */}
-      {iniciando && (
+      {iniciando && !mostrarModalRecuperar && (
         <>
           <div className="form-overlay" onClick={alCancelar}></div>
           <div className="start-form-container">
@@ -256,8 +348,12 @@ const Home = () => {
           <div className="aviso-tiempo-test">
             <AlertCircle size={20} />
             <span>
-              <strong>Advertencia:</strong> El tiempo de duración de la prueba oscila entre 45 y 60 minutos. 
-              Si abandonas, no se puede recuperar la evaluación parcial.
+              {/* Mensaje dinámico según cookies */}
+              {cookiesAceptadas ? (
+                <><strong>Nota:</strong> El tiempo de duración de la prueba oscila entre 45 y 60 minutos. <br></br> Tu progreso se guardará en este navegador para que puedas retomar la prueba si necesitas hacer una pausa.</>
+              ) : (
+                <><strong>Advertencia:</strong> El tiempo de duración de la prueba oscila entre 45 y 60 minutos. Si abandonas, no se puede recuperar la evaluación parcial.</>
+              )}
             </span>
           </div>
 

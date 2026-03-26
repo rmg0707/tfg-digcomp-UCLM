@@ -7,6 +7,7 @@ import Informe from './pages/Informe';
 import DescargaEnvio from './pages/DescargaEnvio';
 import NotFound from './pages/NotFound';
 import RequireId from './components/RequireId';
+import CookieBanner from './components/CookieBanner';
 
 function App() {
   return (
@@ -46,6 +47,8 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
+
+      <CookieBanner />
     </div>
   );
 }

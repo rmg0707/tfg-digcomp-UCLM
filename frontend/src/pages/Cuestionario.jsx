@@ -80,11 +80,16 @@ const mezclarOpciones = (preguntaOriginal) => {
 const generarBateriaPreguntas = (todasLasPreguntas, nivelUnico = null) => {
   if (!todasLasPreguntas || todasLasPreguntas.length === 0) return [];
   const bancoFormateado = todasLasPreguntas.map(p => formatearPreguntaBBDD(p));
-  const poolDisponible = nivelUnico 
-    ? bancoFormateado.filter(p => p.nivel === nivelUnico)
-    : bancoFormateado;
+  
+  let poolDisponible = bancoFormateado;
+  if (nivelUnico) {
+    const nivelNum = MAPA_NIVELES_NUMERICOS[nivelUnico] || nivelUnico;
+    poolDisponible = bancoFormateado.filter(p => p.nivel === nivelNum || String(p.nivel) === String(nivelUnico));
+  }
 
-  if (poolDisponible.length === 0) return [];
+  if (poolDisponible.length === 0) {
+    poolDisponible = bancoFormateado;
+  }
 
   const shuffle = (array) => array.sort(() => 0.5 - Math.random());
   const poolMezclado = shuffle([...poolDisponible]);
@@ -96,7 +101,7 @@ const generarBateriaPreguntas = (todasLasPreguntas, nivelUnico = null) => {
   const contadoresArea = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
   const contadoresTipo = { 'SELECCION': 0, 'TEST': 0, 'VF': 0, 'CLASIFICACION': 0 };
 
-  const seleccionFinal = [];
+  let seleccionFinal = [];
 
   // Normalización flexible del tipo de pregunta
   const obtenerGrupoTipo = (tipoStr) => {
@@ -137,6 +142,14 @@ const generarBateriaPreguntas = (todasLasPreguntas, nivelUnico = null) => {
       }
     }
     if (seleccionFinal.length === 42) break;
+  }
+
+  // SALVAVIDAS EXTREMO: Completa con preguntas aleatorias si no se logran las 42
+  if (seleccionFinal.length < 42) {
+    const idsSeleccionados = new Set(seleccionFinal.map(p => p.id));
+    const sobrantes = poolMezclado.filter(p => !idsSeleccionados.has(p.id));
+    const faltantes = 42 - seleccionFinal.length;
+    seleccionFinal = [...seleccionFinal, ...sobrantes.slice(0, faltantes)];
   }
 
   return shuffle(seleccionFinal).map(p => mezclarOpciones(p));
@@ -346,7 +359,7 @@ const VistaClasificacion = ({ pregunta, estadoTablero, fichasDisponibles, column
   );
 };
 
-const ModalConfirmacionSalida = ({ mostrar, alCancelar, alConfirmar }) => {
+const ModalConfirmacionSalida = ({ mostrar, alCancelar, alConfirmar, cookiesAceptadas }) => {
   if (!mostrar) return null;
 
   return (
@@ -354,7 +367,9 @@ const ModalConfirmacionSalida = ({ mostrar, alCancelar, alConfirmar }) => {
       <div className="modal-content modal-exit" onClick={(e) => e.stopPropagation()}>
         <h3 className="modal-exit-title">¿Seguro que quieres salir?</h3>
         <p className="modal-exit-text">
-          Se perderá todo tu progreso actual y el cuestionario será eliminado. Esta acción no se puede deshacer.
+          {cookiesAceptadas 
+            ? "Tu progreso se quedará guardado para cuando vuelvas."
+            : "Se perderá todo tu progreso actual y el cuestionario será eliminado. Esta acción no se puede deshacer."}
         </p>
         
         <div className="modal-exit-actions">
@@ -424,6 +439,9 @@ function Cuestionario() {
   const [imagenZoom, setImagenZoom] = useState(null);
   const [mostrarModalSalir, setMostrarModalSalir] = useState(false);
 
+  // Saber de forma reactiva si aceptó cookies
+  const cookiesAceptadas = localStorage.getItem('cookiesAceptadas') === 'true';
+  
   // Aplicar temas visuales
   useEffect(() => {
     const cuerpo = document.body;
@@ -439,6 +457,22 @@ function Cuestionario() {
       efectoEjecutado.current = true;
       try {
         setCargando(true);
+
+        if (cookiesAceptadas && idCuestionario) {
+          const progresoGuardado = localStorage.getItem(`digcomp_progreso_${idCuestionario}`);
+          if (progresoGuardado) {
+            const datos = JSON.parse(progresoGuardado);
+            setBateriaPreguntas(datos.bateriaPreguntas);
+            setIndiceActual(datos.indiceActual);
+            setRespuestasUsuario(datos.respuestasUsuario || {});
+            setTablerosClasificacion(datos.tablerosClasificacion || {});
+            setHistorialResultados(datos.historialResultados || []);
+            tiemposAcumulados.current = datos.tiemposAcumulados || {};
+            setCargando(false);
+            return; 
+          }
+        }
+
         const preguntasCrudas = await CuestionarioService.obtenerBancoPreguntas(nivelSeleccionado);
         const preguntasProcesadas = generarBateriaPreguntas(preguntasCrudas, nivelSeleccionado);
 
@@ -454,7 +488,22 @@ function Cuestionario() {
       }
     };
     if (idCuestionario) iniciarCuestionario();
-  }, [idCuestionario, nivelSeleccionado]);
+  }, [idCuestionario, nivelSeleccionado, cookiesAceptadas]);
+
+  // Autoguardado si aceptó cookies
+  useEffect(() => {
+    if (cookiesAceptadas && idCuestionario && bateriaPreguntas.length > 0 && !finalizadoExitosamente.current) {
+      const estadoActual = {
+        bateriaPreguntas,
+        indiceActual,
+        respuestasUsuario,
+        tablerosClasificacion,
+        historialResultados,
+        tiemposAcumulados: tiemposAcumulados.current
+      };
+      localStorage.setItem(`digcomp_progreso_${idCuestionario}`, JSON.stringify(estadoActual));
+    }
+  }, [bateriaPreguntas, indiceActual, respuestasUsuario, tablerosClasificacion, historialResultados, idCuestionario, cookiesAceptadas]);
 
   // Temporizador para permitir borrado
   useEffect(() => {
@@ -462,10 +511,11 @@ function Cuestionario() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Limpieza al desmontar
+  // Limpieza al desmontar (Solo si RECHAZÓ las cookies)
   useEffect(() => {
     return () => {
-      if (puedeBorrar.current && idCuestionario && !finalizadoExitosamente.current) {
+      const isCookiesAceptadas = localStorage.getItem('cookiesAceptadas') === 'true';
+      if (!isCookiesAceptadas && puedeBorrar.current && idCuestionario && !finalizadoExitosamente.current) {
         CuestionarioService.eliminar(idCuestionario).catch(() => { });
       }
     };
@@ -482,16 +532,31 @@ function Cuestionario() {
     setMostrarModalSalir(true); 
   };
 
-  const confirmarSalida = () => { 
+  // LIMPIEZA AL PULSAR SALIR: Solo si RECHAZÓ las cookies
+  const confirmarSalida = async () => { 
+    puedeBorrar.current = false;
+
+    if (!cookiesAceptadas && idCuestionario) {
+      await CuestionarioService.eliminar(idCuestionario).catch(() => {});
+    }
     navegar('/'); 
   };
 
+  // Lógica de respuesta modificada para limpiar "NO_SABE"
   const alResponderVF = (idItem, valor) => {
-    const actuales = respuestasUsuario[preguntaActual.id] || {};
+    const actuales = respuestasUsuario[preguntaActual.id] === 'NO_SABE' 
+      ? {} 
+      : (respuestasUsuario[preguntaActual.id] || {});
     setRespuestasUsuario({ ...respuestasUsuario, [preguntaActual.id]: { ...actuales, [idItem]: valor } });
   };
 
   const moverFichaAColumna = (textoFicha, colId) => {
+    if (respuestasUsuario[preguntaActual.id] === 'NO_SABE') {
+      const nuevasResp = { ...respuestasUsuario };
+      delete nuevasResp[preguntaActual.id];
+      setRespuestasUsuario(nuevasResp);
+    }
+    
     const estadoActual = tablerosClasificacion[preguntaActual.id] || {};
     const nuevoEstado = { ...estadoActual };
     Object.keys(nuevoEstado).forEach(k => { nuevoEstado[k] = nuevoEstado[k].filter(t => t !== textoFicha); });
@@ -536,6 +601,10 @@ function Cuestionario() {
       // Finalizar cuestionario
       setGuardando(true);
       finalizadoExitosamente.current = true;
+      
+      if (idCuestionario) {
+        localStorage.removeItem(`digcomp_progreso_${idCuestionario}`);
+      }
 
       const puntosObtenidos = nuevoHistorial.reduce((acc, h) => acc + (h.puntosPonderados || 0), 0);
       const puntosMaximos = bateriaPreguntas.reduce((acc, p) => acc + p.puntosMaximos, 0);
@@ -588,7 +657,14 @@ function Cuestionario() {
   };
 
   // Evaluar respuesta actual
-  const procesarIntento = (esNoSabe = false) => {
+  const procesarIntento = (clickBotonNoSabe = false) => {
+    // Si se pulsa el botón de "No lo sé", se guarda el estado
+    if (clickBotonNoSabe) {
+      setRespuestasUsuario(prev => ({ ...prev, [preguntaActual.id]: 'NO_SABE' }));
+    }
+
+    const esNoSabeFinal = clickBotonNoSabe || respuestasUsuario[preguntaActual.id] === 'NO_SABE';
+
     const fechaInicio = tiempoInicioPregunta.current;
     const fechaFin = new Date();
     
@@ -604,16 +680,7 @@ function Cuestionario() {
     const fechaInicioIso = fechaInicio.toISOString();
     const fechaFinIso = fechaFin.toISOString();
 
-    let respuestaDada = null;
-    if (!esNoSabe) {
-      if (esArrastrar) {
-        respuestaDada = tablerosClasificacion[preguntaActual.id] || {};
-      } else {
-        respuestaDada = respuestasUsuario[preguntaActual.id] || null;
-      }
-    }
-
-    if (esNoSabe) return irSiguientePregunta({ 
+    if (esNoSabeFinal) return irSiguientePregunta({ 
       id_pregunta: preguntaActual.id, 
       codigo: preguntaActual.codigo, 
       score: 0, 
@@ -625,6 +692,13 @@ function Cuestionario() {
       duracion: duracionTotalSegundos,
       respuestaUsuario: "NO_SABE"
     });
+
+    let respuestaDada = null;
+    if (esArrastrar) {
+      respuestaDada = tablerosClasificacion[preguntaActual.id] || {};
+    } else {
+      respuestaDada = respuestasUsuario[preguntaActual.id] || null;
+    }
 
     let porcentajeAcierto = 0;
     const datos = preguntaActual.datosPregunta;
@@ -699,9 +773,13 @@ function Cuestionario() {
     }
   }
 
-  // Validación de avance
+  // Lógica de avance mejorada
+  const esNoSabeSeleccionado = respuestasUsuario[preguntaActual.id] === 'NO_SABE';
   let puedeContinuar = false;
-  if (esArrastrar) {
+
+  if (esNoSabeSeleccionado) {
+    puedeContinuar = true;
+  } else if (esArrastrar) {
     puedeContinuar = (preguntaActual.datosPregunta?.items || []).length === Object.values(tablerosClasificacion[preguntaActual.id] || {}).flat().length;
   } else if (esVF) {
     const items = Array.isArray(preguntaActual.datosPregunta) ? preguntaActual.datosPregunta : preguntaActual.datosPregunta?.items;
@@ -803,7 +881,7 @@ function Cuestionario() {
             esVF ?
               <VistaVerdaderoFalso
                 pregunta={preguntaActual}
-                respuestasActuales={respuestasUsuario[preguntaActual.id]}
+                respuestasActuales={respuestasUsuario[preguntaActual.id] === 'NO_SABE' ? {} : respuestasUsuario[preguntaActual.id]}
                 alResponder={alResponderVF}
               /> :
               <VistaOpcionMultiple
@@ -822,15 +900,31 @@ function Cuestionario() {
           {indiceActual > 0 && (
             <button className="btn btn-secondary" onClick={volverPreguntaAtras} disabled={guardando}><ArrowLeft size={18} /> Atrás</button>
           )}
-          <button className="btn btn-secondary" onClick={() => procesarIntento(true)} disabled={guardando}><HelpCircle size={18} /> No lo sé</button>          
-          <button className="btn btn-primary" onClick={() => procesarIntento(false)} disabled={!puedeContinuar || guardando}>{guardando ? 'Guardando...' : <>Siguiente <ArrowRight size={18} /></>}</button>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => procesarIntento(true)} 
+            disabled={guardando}
+            style={esNoSabeSeleccionado ? { backgroundColor: '#f1f5f9', borderColor: '#94a3b8', color: '#334155' } : {}}
+          >
+            <HelpCircle size={18} /> {esNoSabeSeleccionado ? 'Marcaste: No lo sé' : 'No lo sé'}
+          </button>          
+          <button className="btn btn-primary" onClick={() => procesarIntento(false)} disabled={!puedeContinuar || guardando}>
+            {guardando ? 'Guardando...' : <>Siguiente <ArrowRight size={18} /></>}
+          </button>
         </div>
       </div>
 
-      {/*Modales de salir e imagen*/}
-      <ModalConfirmacionSalida mostrar={mostrarModalSalir} alCancelar={() => setMostrarModalSalir(false)} alConfirmar={confirmarSalida} />
+      <ModalConfirmacionSalida 
+        mostrar={mostrarModalSalir} 
+        alCancelar={() => setMostrarModalSalir(false)} 
+        alConfirmar={confirmarSalida} 
+        cookiesAceptadas={cookiesAceptadas}
+      />
       
-      <ModalZoomImagen imagenUrl={imagenZoom} alCerrar={() => setImagenZoom(null)} />
+      <ModalZoomImagen 
+        imagenUrl={imagenZoom} 
+        alCerrar={() => setImagenZoom(null)} 
+      />
 
     </div>
   );
