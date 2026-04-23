@@ -639,12 +639,13 @@ function Cuestionario() {
           resultado: reporteSimple
         });
 
-        navegar(`/informe?id=${idCuestionario}`, {
+        const nombreSeguro = nombreUsuario || 'Invitado';
+        navegar(`/informe?id=${idCuestionario}&nombre=${encodeURIComponent(nombreSeguro)}`, {
           state: {
             cuestionarioId: idCuestionario,
             resultados: reporteSimple,
             historial: nuevoHistorial,
-            nombreUsuario: nombreUsuario
+            nombreUsuario: nombreSeguro
           },
           replace: true
         });

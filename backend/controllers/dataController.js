@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const nodemailer = require('nodemailer');
+const dns = require('dns'); //Para errores en Gmail
 
 
 // CONTROLADORES DE USUARIOS
@@ -265,6 +266,25 @@ const obtenerRecursosPregunta = async (req, res) => {
 
 // CONTROLADOR DE CORREO
 
+const verificarDominioEmail = (email) => {
+  return new Promise((resolve) => {
+    const dominio = email.split('@')[1];
+    
+    if (!dominio) {
+      return resolve(false);
+    }
+
+    // Consulta los registros MX (Mail Exchange) del dominio
+    dns.resolveMx(dominio, (err, addresses) => {
+      // Si hay error en la consulta (dominio no existe) o no hay direcciones (no admite correo)
+      if (err || !addresses || addresses.length === 0) {
+        resolve(false); 
+      } else {
+        resolve(true); 
+      }
+    });
+  });
+};
 
 const enviarResultadosPDF = async (req, res) => {
   const { email, nombreUsuario } = req.body;
@@ -273,6 +293,15 @@ const enviarResultadosPDF = async (req, res) => {
 
   if (!email || !pdfFile) {
     return res.status(400).json({ error: 'Faltan datos: email o archivo PDF.' });
+  }
+
+  // Valida el dominio antes de intentar enviar nada
+  const dominioValido = await verificarDominioEmail(email);
+  if (!dominioValido) {
+    const dominioErroneo = email.split('@')[1];
+    return res.status(400).json({ 
+      error: `No se puede enviar el correo. El dominio "@${dominioErroneo}" no existe o no admite mensajes. Revisa si hay alguna errata.` 
+    });
   }
 
   try {

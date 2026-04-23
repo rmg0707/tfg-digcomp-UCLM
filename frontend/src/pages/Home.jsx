@@ -84,13 +84,35 @@ const Home = () => {
   };
 
   const retomarCuestionario = () => {
-    navegar(`/cuestionario?id=${intentoGuardado}`);
+    // Busca la configuración guardada
+    const configGuardada = localStorage.getItem(`digcomp_config_${intentoGuardado}`);
+    
+    let urlDestino = `/cuestionario?id=${intentoGuardado}`;
+
+    if (configGuardada) {
+      // Si existe extrae datos y añade a URL
+      const { nombre, tipo, nivel } = JSON.parse(configGuardada);
+      urlDestino += `&nombre=${encodeURIComponent(nombre || 'Invitado')}`;
+      urlDestino += `&tipo=${tipo || 'general'}`;
+      
+      if (tipo === 'nivel' && nivel) {
+        urlDestino += `&nivel=${nivel}`;
+      }
+    } else {
+      // Seguridad por si se borró el localStorage
+      urlDestino += '&nombre=Invitado&tipo=general';
+    }
+
+    navegar(urlDestino);
   };
 
   const empezarCuestionarioNuevo = async () => {
     setCargando(true);
+    
     // Borra progreso local
     localStorage.removeItem(`digcomp_progreso_${intentoGuardado}`);
+    // Borra también la configuración asociada (nombre, tipo, nivel)
+    localStorage.removeItem(`digcomp_config_${intentoGuardado}`);
     
     try {
       await CuestionarioService.eliminar(intentoGuardado);
@@ -142,7 +164,18 @@ const Home = () => {
 
     try {
       await CuestionarioService.crear(nuevoCuestionario);
-      // Pasamos el nombre por la URL (la ocupación se guarda en la BBDD, no viaja por URL)
+      
+      // NUEVO: Solo guardamos la configuración en local si HA ACEPTADO las cookies
+      if (cookiesAceptadas) {
+        const configuracionTest = {
+          nombre: nombre.trim(),
+          tipo: tipoTest,
+          nivel: nivelSeleccionado
+        };
+        localStorage.setItem(`digcomp_config_${idCuestionario}`, JSON.stringify(configuracionTest));
+      }
+      
+      // Pasamos los parámetros por la URL (esto garantiza que funcione aunque no haya localStorage)
       navegar(`/cuestionario?id=${idCuestionario}&tipo=${tipoTest}${tipoTest === 'nivel' ? `&nivel=${nivelSeleccionado}` : ''}&nombre=${encodeURIComponent(nombre.trim())}`);
     } catch (err) {
       console.error("Error:", err);
